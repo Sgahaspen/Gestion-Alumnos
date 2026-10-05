@@ -2126,23 +2126,25 @@
       </div>
     </div>
 
-    <!-- CONSOLA DE DOCUMENTACIÓN ESCOLAR OFICIAL PARA REPORTES -->
-    <div id="modalImpresionContenedor" class="modal-impresion-externo">
-      <div class="modal-impresion-interno">
-        <div class="modal-cabecera-acciones">
-          <h3 id="modalImpresionTitulo" style="margin: 0; font-size: 16px">Consola de Documentación Escolar Oficial</h3>
-          <div style="display: flex; gap: 10px">
+     <!-- CONSOLA DE DOCUMENTACIÓN ESCOLAR OFICIAL PARA REPORTES (BLINDADA CONTRA INTERFERENCIAS CSS) -->
+    <div id="modalImpresionContenedor" class="modal-impresion-externo" style="display: none !important; position: fixed !important; inset: 0 !important; background: rgba(15, 23, 42, 0.7) !important; backdrop-filter: blur(4px) !important; z-index: 10000 !important; justify-content: center !important; align-items: flex-start !important; padding: 20px !important; overflow-y: auto !important;">
+      <div class="modal-impresion-interno" style="background: #1e293b !important; width: 100% !important; max-width: 1000px !important; border-radius: 8px !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important; overflow: hidden !important; margin-top: 10px !important; display: block !important;">
+        <div class="modal-cabecera-acciones" style="display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 12px 20px !important; border-bottom: 1px solid #334155 !important; background: #1e293b !important;">
+          <h3 id="modalImpresionTitulo" style="margin: 0 !important; font-size: 15px !important; color: #f8fafc !important; font-family: system-ui, sans-serif !important; font-weight: 600 !important;">Consola de Documentación Escolar Oficial</h3>
+          <div style="display: flex !important; gap: 10px !important;">
             <button
               type="button"
               onclick="window.print()"
               style="
-                background: #16a34a;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                cursor: pointer;
+                background: #16a34a !important;
+                color: white !important;
+                border: none !important;
+                padding: 8px 16px !important;
+                border-radius: 4px !important;
+                font-weight: bold !important;
+                cursor: pointer !important;
+                font-size: 13px !important;
+                font-family: system-ui, sans-serif !important;
               "
             >
               🖨 Ejecutar Impresión / Guardar PDF
@@ -2151,21 +2153,28 @@
               type="button"
               id="btnCerrarModalImpresion"
               style="
-                background: #ef4444;
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-                cursor: pointer;
+                background: #ef4444 !important;
+                color: white !important;
+                border: none !important;
+                padding: 8px 16px !important;
+                border-radius: 4px !important;
+                font-weight: bold !important;
+                cursor: pointer !important;
+                font-size: 13px !important;
+                font-family: system-ui, sans-serif !important;
               "
             >
               Cerrar Ventana
             </button>
           </div>
         </div>
+        <div id="modalImpresionCuerpo" class="modal-cuerpo-scrollable" style="background: #64748b !important; padding: 20px !important; display: flex !important; justify-content: center !important; min-height: 400px !important;">
+          <!-- Inyección asíncrona de reportes -->
+        </div>
       </div>
     </div>
+
+
 
     <!-- VENTANA EMERGENTE DE CONFIRMACIÓN ESTILIZADA (REEMPLAZO CONFIRM) -->
     <div

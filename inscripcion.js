@@ -855,7 +855,7 @@
           return;
         }
 
-               const botonEditar = e.target.closest(".btn-fila-editar");
+              const botonEditar = e.target.closest(".btn-fila-editar");
         if (botonEditar) {
           e.stopPropagation();
           const dniAlumno = botonEditar.getAttribute("data-dni");
@@ -865,6 +865,15 @@
           return;
         }
 
+        const botonInforme = e.target.closest(".btn-fila-informe");
+        if (botonInforme) {
+          e.stopPropagation();
+          const dniAlumno = botonInforme.getAttribute("data-dni");
+          if (dniAlumno && typeof window.emitirDocumentoIndividual === "function") {
+            await window.emitirDocumentoIndividual("INFORME", dniAlumno);
+          }
+          return;
+        }
       });
     }
 
@@ -2125,4 +2134,224 @@
 
   // EJECUCIÓN INMEDIATA
   inicializarSistemaCompleto();
+    // =========================================================================
+  // MOTOR DE IMPRESIÓN OFICIAL: PARTE 1 - ADUANA LOCAL Y CONSULTAS (FIEL AL VIEJO)
+  // =========================================================================
+  window.emitirDocumentoIndividual = async function (tipo, dni) {
+    try {
+      // 🛠️ PILAR 2: ADUANA LOCAL PREFERENTE (Costo Cero para datos filiatorios)
+      let alumno = cacheAlumnosPorDni[dni];
+      
+      if (!alumno) {
+        const claveMaestraCache = `haspen_indice_central_alumnos`;
+        const datosLocalesCifrados = localStorage.getItem(claveMaestraCache);
+        if (datosLocalesCifrados) {
+          const baseDeDatosLocal = descifrarDatos(datosLocalesCifrados) || [];
+          alumno = baseDeDatosLocal.find((al) => al.dni === dni);
+        }
+      }
+
+      if (!alumno) {
+        const snapAlumno = await getDoc(doc(db, "alumnos", dni));
+        if (!snapAlumno.exists()) return;
+        alumno = snapAlumno.data();
+        if (typeof window.actualizarContadoresMonitor === "function") {
+          window.actualizarContadoresMonitor("firebase_lectura", 1);
+        }
+      }
+
+      let cursoTexto = "Mesa de Entrada";
+      let materiasEstructura = [];
+      if (alumno.cursoId) {
+        const snapCurso = await getDoc(doc(db, "cursos", alumno.cursoId));
+        if (snapCurso.exists()) {
+          const cData = snapCurso.data();
+          cursoTexto = `${cData.ciclo} - "${cData.division}" (${cData.turno})`;
+          materiasEstructura = cData.materias || [];
+          if (typeof window.actualizarContadoresMonitor === "function") {
+            window.actualizarContadoresMonitor("firebase_lectura", 1);
+          }
+        }
+      }
+
+      let calificacionesMapeadas = {};
+      try {
+        const { query, where, collection, getDocs } = await import(b + "firebase-firestore.js");
+        const consultaNotas = query(
+          collection(db, "alumnos_calificaciones"),
+          where("alumnoDni", "==", String(dni).trim())
+        );
+        const snapCalificaciones = await getDocs(consultaNotas);
+        if (typeof window.actualizarContadoresMonitor === "function" && !snapCalificaciones.empty) {
+          window.actualizarContadoresMonitor("firebase_lectura", snapCalificaciones.size);
+        }
+
+        snapCalificaciones.forEach((cDoc) => {
+          const cData = cDoc.data();
+          if (cData && cData.materia) {
+            const claveMateriaOriginal = cData.materia.trim();
+            const n = cData.notes || cData.notas || {};
+            const t1 = n.trim1 || {};
+            const t2 = n.trim2 || {};
+
+            calificacionesMapeadas[claveMateriaOriginal] = {
+              c1_inf1: t1.n1 !== null && t1.n1 !== undefined && t1.n1 !== "" ? String(t1.n1) : "-",
+              c1_inf2: t1.n2 !== null && t1.n2 !== undefined && t1.n2 !== "" ? String(t1.n2) : "-",
+              c1_forta: t1.ef !== null && t1.ef !== undefined && t1.ef !== "" ? String(t1.ef) : "-",
+              c1_nota: cData.notaCuatrimestre1 !== null && cData.notaCuatrimestre1 !== undefined && cData.notaCuatrimestre1 !== "" ? String(cData.notaCuatrimestre1) : "-",
+              c2_inf1: t2.n1 !== null && t2.n1 !== undefined && t2.n1 !== "" ? String(t2.n1) : "-",
+              c2_inf2: t2.n2 !== null && t2.n2 !== undefined && t2.n2 !== "" ? String(t2.n2) : "-",
+              c2_forta: t2.ef !== null && t2.ef !== undefined && t2.ef !== "" ? String(t2.ef) : "-",
+              c2_nota: cData.notaCuatrimestre2 !== null && cData.notaCuatrimestre2 !== undefined && cData.notaCuatrimestre2 !== "" ? String(cData.notaCuatrimestre2) : "-",
+              nota_final: cData.notaFinal !== null && cData.notaFinal !== undefined && cData.notaFinal !== "" ? String(cData.notaFinal) : "-",
+              diciembre: cData.diciembre !== null && cData.diciembre !== undefined && cData.diciembre !== "" ? String(cData.diciembre) : "-",
+              febrero: cData.febrero !== null && cData.febrero !== undefined && cData.febrero !== "" ? String(cData.febrero) : "-",
+              observaciones: cData.observaciones || ""
+            };
+          }
+        });
+      } catch (err) {
+        console.warn("No se pudo sincronizar la matriz de calificaciones.");
+      }
+
+      let inasistenciasTotales = 0;
+      try {
+        const { collection, getDocs } = await import(b + "firebase-firestore.js");
+        const snapAsistencias = await getDocs(collection(db, "asistencias"));
+        if (typeof window.actualizarContadoresMonitor === "function" && !snapAsistencias.empty) {
+          window.actualizarContadoresMonitor("firebase_lectura", snapAsistencias.size);
+        }
+        snapAsistencias.forEach((aDoc) => {
+          const aData = aDoc.data();
+          if (aData.alumnoDni === dni && aData.valor) {
+            inasistenciasTotales += parseFloat(aData.valor);
+          }
+        });
+      } catch (err) {
+        console.warn("No se pudo sincronizar el total de inasistencias.");
+      }
+      const modalContenedor = domElements.modalImpresion;
+      const modalCuerpo = document.getElementById("modalImpresionCuerpo") || modalContenedor;
+
+      modalCuerpo.innerHTML =
+        tipo === "INFORME"
+          ? construirMediaHojaInformePedagogico(
+              alumno,
+              cursoTexto,
+              materiasEstructura,
+              calificacionesMapeadas,
+              inasistenciasTotales
+            )
+          : "";
+          
+      if (modalContenedor) {
+           modalContenedor.style.setProperty("display", "flex", "important");
+      }
+
+      // Registro de trazabilidad forense (Pilar 5)
+      if (typeof window.registrarEventoLegajo === "function") {
+        await window.registrarEventoLegajo(
+          dni,
+          "MATRICULA",
+          "EMISION_INFORME",
+          `Se generó y visualizó en pantalla el informe pedagógico oficial del ciclo lectivo activo.`
+        );
+      }
+    } catch (error) {
+      console.error("Fallo de composición en reportes:", error);
+    }
+  };
+
+  function construirMediaHojaInformePedagogico(alumno, cursoTexto, materias, calificaciones, inasistencias) {
+    let filasHTML = "";
+    if (materias.length === 0) {
+      filasHTML = `<tr><td colspan="10" style="padding:10px; color:#666;">Sin asignaturas asignadas.</td></tr>`;
+    } else {
+      materias.forEach((materia) => {
+        const c = calificaciones[materia] || {};
+        const inf1_1 = c.c1_inf1 && c.c1_inf1 !== "0" ? c.c1_inf1 : "-";
+        const inf1_2 = c.c1_inf2 && c.c1_inf2 !== "0" ? c.c1_inf2 : "-";
+        const forta1 = c.c1_forta && c.c1_forta !== "0" ? c.c1_forta : "-";
+        const notaC1 = c.c1_nota && c.c1_nota !== "0" ? c.c1_nota : "-";
+        const inf2_1 = c.c2_inf1 && c.c2_inf1 !== "0" ? c.c2_inf1 : "-";
+        const inf2_2 = c.c2_inf2 && c.c2_inf2 !== "0" ? c.c2_inf2 : "-";
+        const forta2 = c.c2_forta && c.c2_forta !== "0" ? c.c2_forta : "-";
+        const notaC2 = c.c2_nota && c.c2_nota !== "0" ? c.c2_nota : "-";
+        const finalNota = c.nota_final && c.nota_final !== "0" ? c.nota_final : "-";
+
+        filasHTML += `
+            <tr>
+                <td style="text-align:left; font-weight:bold; font-size:9.5px; padding:4px 3px;">${materia}</td>
+                <td style="font-size:11px; font-weight:500;">${inf1_1}</td>
+                <td style="font-size:11px; font-weight:500;">${inf1_2}</td>
+                <td style="font-size:11px; font-weight:500;">${forta1}</td>
+                <td style="background:#f1f5f9; font-weight:bold; font-size:12px; color:#1e293b;">${notaC1}</td>
+                <td style="font-size:11px; font-weight:500;">${inf2_1}</td>
+                <td style="font-size:11px; font-weight:500;">${inf2_2}</td>
+                <td style="font-size:11px; font-weight:500;">${forta2}</td>
+                <td style="background:#f1f5f9; font-weight:bold; font-size:12px; color:#1e293b;">${notaC2}</td>
+                <td style="background:#e2e8f0; font-weight:bold; font-size:12px; color:#0f172a;">${finalNota}</td>
+            </tr>
+        `;
+      });
+    }
+
+    return `
+    <div class="contenedor-media-hoja-pdf">
+        <div style="text-align:center; margin-bottom:5px; border-bottom:1px solid #000; padding-bottom:2px;">
+            <h2 style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">INFORME PEDAGÓGICO COLEGIO HASPEN</h2>
+        </div>
+        <table style="width:100%; font-size:10px; margin-bottom:5px; text-align:left; line-height:1.2;">
+            <tr>
+                <td style="font-weight:bold; width:12%;">Estudiante:</td>
+                <td style="border-bottom:1px solid #000; width:38%; font-weight:bold;">${alumno.nombre || ""}</td>
+                <td style="font-weight:bold; width:8%;">D.N.I.:</td>
+                <td style="border-bottom:1px solid #000; width:17%;">${alumno.dni || ""}</td>
+                <td style="font-weight:bold; width:8%;">Ciclo:</td>
+                <td style="border-bottom:1px solid #000; width:17%;">${alumno.cicloLectivo || ""}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:bold;">CURSO:</td>
+                <td style="border-bottom:1px solid #000;">${cursoTexto}</td>
+                <td style="font-weight:bold;">TURNO:</td>
+                <td style="border-bottom:1px solid #000;" colspan="3">${alumno.cursoId ? window.cachedCursosColegio.find((c) => c.id === alumno.cursoId)?.turno.toUpperCase() : "S/D"}</td>
+            </tr>
+        </table>
+        <table class="tabla-hoja-documento">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width:28%; text-align:left;">ESPACIO CURRICULAR</th>
+                    <th colspan="4" style="background:#e0f2fe !important;">1° CUATRIMESTRE</th>
+                    <th colspan="4" style="background:#fef3c7 !important;">2° CUATRIMESTRE</th>
+                    <th rowspan="2" style="width:8%; background:#cbd5e1 !important;">FINAL</th>
+                </tr>
+                <tr>
+                    <th style="width:7%;">1° INF</th>
+                    <th style="width:7%;">2° INF</th>
+                    <th style="width:7%;">FORTA.</th>
+                    <th style="width:8%; background:#bae6fd !important;">1° CUATRI</th>
+                    <th style="width:7%;">1° INF</th>
+                    <th style="width:7%;">2° INF</th>
+                    <th style="width:7%;">FORTA.</th>
+                    <th style="width:8%; background:#fcd34d !important;">2° CUATRI</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filasHTML}
+            </tbody>
+        </table>
+        <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+            <div style="border:1px solid #000; padding:4px 10px; font-weight:bold; background:#f8fafc;">
+                INASISTENCIAS TOTALES REGISTRADAS: <span style="font-size:11px; color:#ef4444;">${inasistencias}</span>
+            </div>
+            <div style="display:flex; gap:30px; font-size:8px; margin-top:15px;">
+                <div style="width:110px; border-top:1px solid #000; text-align:center; padding-top:2px;">Firma del Preceptor/a</div>
+                <div style="width:110px; border-top:1px solid #000; text-align:center; padding-top:2px;">Sello del Establecimiento</div>
+            </div>
+        </div>
+    </div>
+    `;
+  }
+
+
 })();
