@@ -2134,12 +2134,11 @@
 
   // EJECUCIÓN INMEDIATA
   inicializarSistemaCompleto();
-    // =========================================================================
-  // MOTOR DE IMPRESIÓN OFICIAL: PARTE 1 - ADUANA LOCAL Y CONSULTAS (FIEL AL VIEJO)
+   // =========================================================================
+  // MOTOR DE IMPRESIÓN OFICIAL UNIFICADO - PARTE 1: LOGICA Y CONSULTAS FAST
   // =========================================================================
   window.emitirDocumentoIndividual = async function (tipo, dni) {
     try {
-      // 🛠️ PILAR 2: ADUANA LOCAL PREFERENTE (Costo Cero para datos filiatorios)
       let alumno = cacheAlumnosPorDni[dni];
       
       if (!alumno) {
@@ -2203,10 +2202,7 @@
               c2_inf2: t2.n2 !== null && t2.n2 !== undefined && t2.n2 !== "" ? String(t2.n2) : "-",
               c2_forta: t2.ef !== null && t2.ef !== undefined && t2.ef !== "" ? String(t2.ef) : "-",
               c2_nota: cData.notaCuatrimestre2 !== null && cData.notaCuatrimestre2 !== undefined && cData.notaCuatrimestre2 !== "" ? String(cData.notaCuatrimestre2) : "-",
-              nota_final: cData.notaFinal !== null && cData.notaFinal !== undefined && cData.notaFinal !== "" ? String(cData.notaFinal) : "-",
-              diciembre: cData.diciembre !== null && cData.diciembre !== undefined && cData.diciembre !== "" ? String(cData.diciembre) : "-",
-              febrero: cData.febrero !== null && cData.febrero !== undefined && cData.febrero !== "" ? String(cData.febrero) : "-",
-              observaciones: cData.observaciones || ""
+              nota_final: cData.notaFinal !== null && cData.notaFinal !== undefined && cData.notaFinal !== "" ? String(cData.notaFinal) : "-"
             };
           }
         });
@@ -2216,20 +2212,25 @@
 
       let inasistenciasTotales = 0;
       try {
-        const { collection, getDocs } = await import(b + "firebase-firestore.js");
-        const snapAsistencias = await getDocs(collection(db, "asistencias"));
+        const { query, where, collection, getDocs } = await import(b + "firebase-firestore.js");
+        const consultaAsistencias = query(
+          collection(db, "asistencias"),
+          where("alumnoDni", "==", String(dni).trim())
+        );
+        const snapAsistencias = await getDocs(consultaAsistencias);
         if (typeof window.actualizarContadoresMonitor === "function" && !snapAsistencias.empty) {
           window.actualizarContadoresMonitor("firebase_lectura", snapAsistencias.size);
         }
         snapAsistencias.forEach((aDoc) => {
           const aData = aDoc.data();
-          if (aData.alumnoDni === dni && aData.valor) {
+          if (aData.valor) {
             inasistenciasTotales += parseFloat(aData.valor);
           }
         });
       } catch (err) {
         console.warn("No se pudo sincronizar el total de inasistencias.");
       }
+
       const modalContenedor = domElements.modalImpresion;
       const modalCuerpo = document.getElementById("modalImpresionCuerpo") || modalContenedor;
 
@@ -2248,7 +2249,6 @@
            modalContenedor.style.setProperty("display", "flex", "important");
       }
 
-      // Registro de trazabilidad forense (Pilar 5)
       if (typeof window.registrarEventoLegajo === "function") {
         await window.registrarEventoLegajo(
           dni,
@@ -2261,11 +2261,13 @@
       console.error("Fallo de composición en reportes:", error);
     }
   };
-
+  // =========================================================================
+  // MOTOR DE IMPRESIÓN OFICIAL UNIFICADO - PARTE 2: DISEÑO VISUAL INLINE
+  // =========================================================================
   function construirMediaHojaInformePedagogico(alumno, cursoTexto, materias, calificaciones, inasistencias) {
     let filasHTML = "";
     if (materias.length === 0) {
-      filasHTML = `<tr><td colspan="10" style="padding:10px; color:#666;">Sin asignaturas asignadas.</td></tr>`;
+      filasHTML = `<tr><td colspan="10" style="padding:10px; text-align:center; border-bottom:1px solid #000000; color:#666;">Sin asignaturas asignadas.</td></tr>`;
     } else {
       materias.forEach((materia) => {
         const c = calificaciones[materia] || {};
@@ -2280,69 +2282,69 @@
         const finalNota = c.nota_final && c.nota_final !== "0" ? c.nota_final : "-";
 
         filasHTML += `
-            <tr>
-                <td style="text-align:left; font-weight:bold; font-size:9.5px; padding:4px 3px;">${materia}</td>
-                <td style="font-size:11px; font-weight:500;">${inf1_1}</td>
-                <td style="font-size:11px; font-weight:500;">${inf1_2}</td>
-                <td style="font-size:11px; font-weight:500;">${forta1}</td>
-                <td style="background:#f1f5f9; font-weight:bold; font-size:12px; color:#1e293b;">${notaC1}</td>
-                <td style="font-size:11px; font-weight:500;">${inf2_1}</td>
-                <td style="font-size:11px; font-weight:500;">${inf2_2}</td>
-                <td style="font-size:11px; font-weight:500;">${forta2}</td>
-                <td style="background:#f1f5f9; font-weight:bold; font-size:12px; color:#1e293b;">${notaC2}</td>
-                <td style="background:#e2e8f0; font-weight:bold; font-size:12px; color:#0f172a;">${finalNota}</td>
+            <tr style="border-bottom: 1px solid #000000; text-align: center; font-family: system-ui, sans-serif; font-size: 11px; height: 24px;">
+                <td style="text-align: left; font-weight: bold; font-size: 9.5px; padding: 4px 6px; border-right: 1px solid #000000; text-transform: uppercase;">${materia}</td>
+                <td style="border-right: 1px solid #000000; font-size: 11px; font-weight: 500;">${inf1_1}</td>
+                <td style="border-right: 1px solid #000000; font-size: 11px; font-weight: 500;">${inf1_2}</td>
+                <td style="border-right: 1px solid #000000; font-size: 11px; font-weight: 500;">${forta1}</td>
+                <td style="background: #e0f2fe; font-weight: bold; font-size: 12px; color: #1e293b; border-right: 1px solid #000000;">${notaC1}</td>
+                <td style="border-right: 1px solid #000000; font-size: 11px; font-weight: 500;">${inf2_1}</td>
+                <td style="border-right: 1px solid #000000; font-size: 11px; font-weight: 500;">${inf2_2}</td>
+                <td style="border-right: 1px solid #000000; font-size: 11px; font-weight: 500;">${forta2}</td>
+                <td style="background: #fef3c7; font-weight: bold; font-size: 12px; color: #1e293b; border-right: 1px solid #000000;">${notaC2}</td>
+                <td style="background: #cbd5e1; font-weight: bold; font-size: 12px; color: #0f172a;">${finalNota}</td>
             </tr>
         `;
       });
     }
 
     return `
-    <div class="contenedor-media-hoja-pdf">
+    <div class="contenedor-media-hoja-pdf" style="background: #ffffff !important; color: #000000 !important; width: 100% !important; padding: 20px !important; font-family: system-ui, sans-serif !important; box-sizing: border-box !important;">
         <div style="text-align:center; margin-bottom:5px; border-bottom:1px solid #000; padding-bottom:2px;">
-            <h2 style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">INFORME PEDAGÓGICO COLEGIO HASPEN</h2>
+            <h2 style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:#000000;">INFORME PEDAGÓGICO COLEGIO HASPEN</h2>
         </div>
-        <table style="width:100%; font-size:10px; margin-bottom:5px; text-align:left; line-height:1.2;">
+        <table style="width:100%; font-size:10px; margin-bottom:5px; text-align:left; line-height:1.2; border-collapse: collapse; color:#000000;">
             <tr>
                 <td style="font-weight:bold; width:12%;">Estudiante:</td>
-                <td style="border-bottom:1px solid #000; width:38%; font-weight:bold;">${alumno.nombre || ""}</td>
-                <td style="font-weight:bold; width:8%;">D.N.I.:</td>
+                <td style="border-bottom:1px solid #000; width:38%; font-weight:bold;">${alumno.nombre || alumno.nombreAlumno || ""}</td>
+                <td style="font-weight:bold; width:8%; padding-left:5px;">D.N.I.:</td>
                 <td style="border-bottom:1px solid #000; width:17%;">${alumno.dni || ""}</td>
-                <td style="font-weight:bold; width:8%;">Ciclo:</td>
+                <td style="font-weight:bold; width:8%; padding-left:5px;">Ciclo:</td>
                 <td style="border-bottom:1px solid #000; width:17%;">${alumno.cicloLectivo || ""}</td>
             </tr>
             <tr>
                 <td style="font-weight:bold;">CURSO:</td>
                 <td style="border-bottom:1px solid #000;">${cursoTexto}</td>
-                <td style="font-weight:bold;">TURNO:</td>
-                <td style="border-bottom:1px solid #000;" colspan="3">${alumno.cursoId ? window.cachedCursosColegio.find((c) => c.id === alumno.cursoId)?.turno.toUpperCase() : "S/D"}</td>
+                <td style="font-weight:bold; padding-left:5px;">TURNO:</td>
+                <td style="border-bottom:1px solid #000;" colspan="3">${alumno.cursoId ? (window.cachedCursosColegio?.find((c) => c.id === alumno.cursoId)?.turno || "MAÑANA").toUpperCase() : "S/D"}</td>
             </tr>
         </table>
-        <table class="tabla-hoja-documento">
+        <table class="tabla-hoja-documento" style="width:100%; border-collapse:collapse; border:1px solid #000000; font-size:10px; color:#000000;">
             <thead>
-                <tr>
-                    <th rowspan="2" style="width:28%; text-align:left;">ESPACIO CURRICULAR</th>
-                    <th colspan="4" style="background:#e0f2fe !important;">1° CUATRIMESTRE</th>
-                    <th colspan="4" style="background:#fef3c7 !important;">2° CUATRIMESTRE</th>
-                    <th rowspan="2" style="width:8%; background:#cbd5e1 !important;">FINAL</th>
+                <tr style="height:24px; font-weight:bold; text-align:center;">
+                    <th rowspan="2" style="width:28%; text-align:left; padding-left:4px; border-right:1px solid #000000; border-bottom:1px solid #000000;">ESPACIO CURRICULAR</th>
+                    <th colspan="4" style="background:#e0f2fe; border-right:1px solid #000000; border-bottom:1px solid #000000; color:#000000;">1° CUATRIMESTRE</th>
+                    <th colspan="4" style="background:#fef3c7; border-right:1px solid #000000; border-bottom:1px solid #000000; color:#000000;">2° CUATRIMESTRE</th>
+                    <th rowspan="2" style="width:8%; background:#cbd5e1; border-bottom:1px solid #000000; color:#000000;">FINAL</th>
                 </tr>
-                <tr>
-                    <th style="width:7%;">1° INF</th>
-                    <th style="width:7%;">2° INF</th>
-                    <th style="width:7%;">FORTA.</th>
-                    <th style="width:8%; background:#bae6fd !important;">1° CUATRI</th>
-                    <th style="width:7%;">1° INF</th>
-                    <th style="width:7%;">2° INF</th>
-                    <th style="width:7%;">FORTA.</th>
-                    <th style="width:8%; background:#fcd34d !important;">2° CUATRI</th>
+                <tr style="height:24px; font-weight:bold; text-align:center; background:#ffffff;">
+                    <th style="width:7%; border-right:1px solid #000000; border-bottom:1px solid #000000;">1° INF</th>
+                    <th style="width:7%; border-right:1px solid #000000; border-bottom:1px solid #000000;">2° INF</th>
+                    <th style="width:7%; border-right:1px solid #000000; border-bottom:1px solid #000000;">FORTA.</th>
+                    <th style="width:8%; background:#bae6fd; border-right:1px solid #000000; border-bottom:1px solid #000000; color:#000000;">1° CUATRI</th>
+                    <th style="width:7%; border-right:1px solid #000000; border-bottom:1px solid #000000;">1° INF</th>
+                    <th style="width:7%; border-right:1px solid #000000; border-bottom:1px solid #000000;">2° INF</th>
+                    <th style="width:7%; border-right:1px solid #000000; border-bottom:1px solid #000000;">FORTA.</th>
+                    <th style="width:8%; background:#fcd34d; border-right:1px solid #000000; border-bottom:1px solid #000000; color:#000000;">2° CUATRI</th>
                 </tr>
             </thead>
             <tbody>
                 ${filasHTML}
             </tbody>
         </table>
-        <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#000000;">
             <div style="border:1px solid #000; padding:4px 10px; font-weight:bold; background:#f8fafc;">
-                INASISTENCIAS TOTALES REGISTRADAS: <span style="font-size:11px; color:#ef4444;">${inasistencias}</span>
+                INASISTENCIAS TOTALES REGISTRADAS: <span style="font-size:11px; color:#ef4444; font-weight:bold;">${inasistencias}</span>
             </div>
             <div style="display:flex; gap:30px; font-size:8px; margin-top:15px;">
                 <div style="width:110px; border-top:1px solid #000; text-align:center; padding-top:2px;">Firma del Preceptor/a</div>
@@ -2352,6 +2354,8 @@
     </div>
     `;
   }
+
+ 
 
 
 })();

@@ -658,46 +658,64 @@
         background: #e2e8f0;
       }
 
-      @media print {
+            @media print {
+        /* Oculta toda la interfaz del sistema, menús y los elementos de la cabecera del modal */
         .panel-container,
         .workspace-layout-wizard,
         .tabla-seccion-widescreen,
-        #contenedorFormularioAltaModal {
+        #contenedorFormularioAltaModal,
+        .modal-cabecera-acciones,
+        .modal-cabecera-acciones *,
+        #modalImpresionTitulo,
+        button {
           display: none !important;
+          visibility: hidden !important;
         }
+        
         body {
           background: white !important;
           overflow: visible !important;
         }
+        
         .modal-impresion-externo {
           position: absolute !important;
           display: block !important;
           background: white !important;
-          top: 0;
-          left: 0;
+          top: 0 !important;
+          left: 0 !important;
           width: 100% !important;
           height: auto !important;
         }
+        
         .modal-impresion-interno {
           box-shadow: none !important;
+          background: white !important;
           width: 100% !important;
           height: auto !important;
         }
-        .modal-cabecera-acciones {
-          display: none !important;
-        }
+        
         .modal-cuerpo-scrollable {
           padding: 0 !important;
           background: white !important;
           overflow: visible !important;
         }
+        
+        /* Configuración precisa para ocupar la mitad superior de una hoja A4 Vertical */
         .contenedor-media-hoja-pdf {
           box-shadow: none !important;
           margin: 0 auto !important;
-          width: 210mm !important;
-          height: 138mm !important;
-          max-height: 138mm !important;
+          width: 210mm !important;      /* Mantiene el ancho total de la hoja A4 */
+          height: 148mm !important;     /* Alto exacto que divide la A4 vertical a la mitad */
+          max-height: 148mm !important; /* Evita que los datos se estiren hacia abajo */
+          padding: 15px 20px !important;
+          box-sizing: border-box !important;
           page-break-inside: avoid !important;
+        }
+
+        /* Fuerza al navegador a mantener la hoja parada (Vertical) y quita márgenes basura */
+        @page {
+          size: A4 portrait;            /* Aplica orientación vertical obligatoria */
+          margin: 0 !important;         /* Remueve los márgenes por defecto del navegador */
         }
       }
       /* Limpieza visual: Oculta los botones de acción por defecto */
@@ -709,6 +727,8 @@
           transform 0.2s ease;
         transform: scale(0.95);
       }
+
+
 
       /* Efecto Hover: Muestra los botones suavemente al pasar el mouse por la fila */
       .fila-alumno:hover .btn-accion-fila {
@@ -2127,52 +2147,83 @@
     </div>
 
      <!-- CONSOLA DE DOCUMENTACIÓN ESCOLAR OFICIAL PARA REPORTES (BLINDADA CONTRA INTERFERENCIAS CSS) -->
-    <div id="modalImpresionContenedor" class="modal-impresion-externo" style="display: none !important; position: fixed !important; inset: 0 !important; background: rgba(15, 23, 42, 0.7) !important; backdrop-filter: blur(4px) !important; z-index: 10000 !important; justify-content: center !important; align-items: flex-start !important; padding: 20px !important; overflow-y: auto !important;">
-      <div class="modal-impresion-interno" style="background: #1e293b !important; width: 100% !important; max-width: 1000px !important; border-radius: 8px !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important; overflow: hidden !important; margin-top: 10px !important; display: block !important;">
-        <div class="modal-cabecera-acciones" style="display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 12px 20px !important; border-bottom: 1px solid #334155 !important; background: #1e293b !important;">
-          <h3 id="modalImpresionTitulo" style="margin: 0 !important; font-size: 15px !important; color: #f8fafc !important; font-family: system-ui, sans-serif !important; font-weight: 600 !important;">Consola de Documentación Escolar Oficial</h3>
-          <div style="display: flex !important; gap: 10px !important;">
-            <button
-              type="button"
-              onclick="window.print()"
-              style="
-                background: #16a34a !important;
-                color: white !important;
-                border: none !important;
-                padding: 8px 16px !important;
-                border-radius: 4px !important;
-                font-weight: bold !important;
-                cursor: pointer !important;
-                font-size: 13px !important;
-                font-family: system-ui, sans-serif !important;
-              "
-            >
-              🖨 Ejecutar Impresión / Guardar PDF
-            </button>
-            <button
-              type="button"
-              id="btnCerrarModalImpresion"
-              style="
-                background: #ef4444 !important;
-                color: white !important;
-                border: none !important;
-                padding: 8px 16px !important;
-                border-radius: 4px !important;
-                font-weight: bold !important;
-                cursor: pointer !important;
-                font-size: 13px !important;
-                font-family: system-ui, sans-serif !important;
-              "
-            >
-              Cerrar Ventana
-            </button>
-          </div>
+ 
+     <div id="modalImpresionContenedor" class="modal-impresion-externo" style="display: none !important; position: fixed !important; inset: 0 !important; background: rgba(15, 23, 42, 0.75) !important; backdrop-filter: blur(4px) !important; z-index: 10000 !important; justify-content: center !important; align-items: flex-start !important; padding: 20px !important; overflow-y: auto !important;">
+  <div class="modal-impresion-interno" style="background: #1e293b !important; width: 100% !important; max-width: 1000px !important; border-radius: 8px !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important; overflow: hidden !important; margin-top: 10px !important; display: block !important;">
+    <div class="modal-cabecera-acciones" style="display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 12px 20px !important; border-bottom: 1px solid #334155 !important; background: #1e293b !important;">
+      <h3 id="modalImpresionTitulo" style="margin: 0 !important; font-size: 15px !important; color: #f8fafc !important; font-family: system-ui, sans-serif !important; font-weight: 600 !important;">Consola de Documentación Escolar Oficial</h3>
+      <div style="display: flex !important; gap: 10px !important;">
+        <button type="button" onclick="window.print()" style="background: #16a34a !important; color: white !important; border: none !important; padding: 8px 16px !important; border-radius: 4px !important; font-weight: bold !important; cursor: pointer !important; font-size: 13px !important; font-family: system-ui, sans-serif !important;">🖨 Ejecutar Impresión / Guardar PDF</button>
+        <button type="button" id="btnCerrarModalImpresion" style="background: #ef4444 !important; color: white !important; border: none !important; padding: 8px 16px !important; border-radius: 4px !important; font-weight: bold !important; cursor: pointer !important; font-size: 13px !important; font-family: system-ui, sans-serif !important;">Cerrar Ventana</button>
+      </div>
+    </div>
+    <div id="modalImpresionCuerpo" class="modal-cuerpo-scrollable" style="background: #64748b !important; padding: 20px !important; display: flex !important; justify-content: center !important; min-height: 400px !important;">
+      <div class="contenedor-media-hoja-pdf" style="background: #ffffff !important; color: #000000 !important; width: 100% !important; max-width: 950px !important; padding: 30px !important; font-family: system-ui, -apple-system, sans-serif !important; box-sizing: border-box !important;">
+        <div style="text-align: center !important; margin-bottom: 10px !important; border-bottom: 1px solid #000000 !important; padding-bottom: 2px !important;">
+          <h2 style="margin: 0 !important; font-size: 12px !important; font-weight: bold !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; color: #000000 !important;">INFORME PEDAGÓGICO COLEGIO HASPEN</h2>
         </div>
-        <div id="modalImpresionCuerpo" class="modal-cuerpo-scrollable" style="background: #64748b !important; padding: 20px !important; display: flex !important; justify-content: center !important; min-height: 400px !important;">
-          <!-- Inyección asíncrona de reportes -->
+        <table style="width: 100% !important; font-size: 10px !important; margin-bottom: 10px !important; text-align: left !important; line-height: 1.3 !important; border-collapse: collapse !important; color: #000000 !important;">
+          <tr>
+            <td style="font-weight: bold !important; width: 12% !important; padding: 3px 0 !important;">Estudiante:</td>
+            <td id="lblInformeEstudiante" style="border-bottom: 1px solid #000000 !important; width: 38% !important; font-weight: bold !important; padding: 3px 0 !important;">Obando Ignacio Tomas</td>
+            <td style="font-weight: bold !important; width: 8% !important; padding: 3px 0 !important; padding-left: 10px !important;">D.N.I.:</td>
+            <td id="lblInformeDni" style="border-bottom: 1px solid #000000 !important; width: 17% !important; padding: 3px 0 !important;">48745325</td>
+            <td style="font-weight: bold !important; width: 8% !important; padding: 3px 0 !important; padding-left: 10px !important;">Ciclo:</td>
+            <td id="lblInformeCiclo" style="border-bottom: 1px solid #000000 !important; width: 17% !important; padding: 3px 0 !important;">2026</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold !important; padding: 3px 0 !important;">CURSO:</td>
+            <td id="lblInformeCurso" style="border-bottom: 1px solid #000000 !important; padding: 3px 0 !important;">1° Año - "A" (Mañana)</td>
+            <td style="font-weight: bold !important; padding: 3px 0 !important; padding-left: 10px !important;">TURNO:</td>
+            <td id="lblInformeTurno" style="border-bottom: 1px solid #000000 !important; padding: 3px 0 !important;" colspan="3">MAÑANA</td>
+          </tr>
+        </table>
+        <table class="tabla-hoja-documento" style="width: 100% !important; border-collapse: collapse !important; border: 1px solid #000000 !important; font-size: 10px !important; color: #000000 !important;">
+          <thead>
+            <tr style="height: 24px !important; text-align: center !important; font-weight: bold !important;">
+              <th rowspan="2" style="width: 28% !important; text-align: left !important; padding-left: 6px !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">ESPACIO CURRICULAR</th>
+              <th colspan="4" style="background: #e0f2fe !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">1° CUATRIMESTRE</th>
+              <th colspan="4" style="background: #fef3c7 !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">2° CUATRIMESTRE</th>
+              <th rowspan="2" style="width: 8% !important; background: #cbd5e1 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">FINAL</th>
+            </tr>
+            <tr style="height: 24px !important; text-align: center !important; font-weight: bold !important; background: #ffffff !important;">
+              <th style="width: 7% !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">1° INF</th>
+              <th style="width: 7% !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">2° INF</th>
+              <th style="width: 7% !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">FORTA.</th>
+              <th style="width: 8% !important; background: #bae6fd !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">1° CUATRI</th>
+              <th style="width: 7% !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">1° INF</th>
+              <th style="width: 7% !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">2° INF</th>
+              <th style="width: 7% !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">FORTA.</th>
+              <th style="width: 8% !important; background: #fcd34d !important; border-right: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; color: #000000 !important;">2° CUATRI</th>
+            </tr>
+          </thead>
+          <tbody id="tablaInformeMateriasCuerpo">
+            <tr style="border-bottom: 1px solid #000000 !important; text-align: center !important; font-size: 11px !important; height: 24px !important;">
+              <td style="text-align: left !important; font-weight: bold !important; font-size: 9.5px !important; padding: 4px 6px !important; border-right: 1px solid #000000 !important;">PRÁCTICAS DEL LENGUAJE</td>
+              <td style="border-right: 1px solid #000000 !important;">-</td>
+              <td style="border-right: 1px solid #000000 !important;">8</td>
+              <td style="border-right: 1px solid #000000 !important;">-</td>
+              <td style="background: #f1f5f9 !important; font-weight: bold !important; font-size: 12px !important; border-right: 1px solid #000000 !important;">8</td>
+              <td style="border-right: 1px solid #000000 !important;">-</td>
+              <td style="border-right: 1px solid #000000 !important;">8</td>
+              <td style="border-right: 1px solid #000000 !important;">-</td>
+              <td style="background: #f1f5f9 !important; font-weight: bold !important; font-size: 12px !important; border-right: 1px solid #000000 !important;">8</td>
+              <td style="background: #e2e8f0 !important; font-weight: bold !important; font-size: 12px !important;">8</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top: 10px !important; display: flex !important; justify-content: space-between !important; align-items: center !important; font-size: 10px !important; color: #000000 !important;">
+          <div style="border: 1px solid #000000 !important; padding: 4px 10px !important; font-weight: bold !important; background: #f8fafc !important;">INASISTENCIAS TOTALES REGISTRADAS: <span id="lblInformeInasistencias" style="font-size: 11px !important; color: #ef4444 !important; font-weight: bold !important;">0</span></div>
+          <div style="display: flex !important; gap: 30px !important; font-size: 8px !important; margin-top: 15px !important;">
+            <div style="width: 110px !important; border-top: 1px solid #000000 !important; text-align: center !important; padding-top: 2px !important; color: #000000 !important;">Firma del Preceptor/a</div>
+            <div style="width: 110px !important; border-top: 1px solid #000000 !important; text-align: center !important; padding-top: 2px !important; color: #000000 !important;">Sello del Establecimiento</div>
+          </div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
 
 
 
