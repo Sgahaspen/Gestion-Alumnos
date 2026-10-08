@@ -13,7 +13,7 @@ respetando estrictamente los pilares arquitectónicos y de infraestructura que d
 1. INFRAESTRUCTURA CLOUD Y ACCESOS (FIREBASE):
    - Motor de persistencia: Cloud Firestore en la instancia "gestion-alumnos-eeb24".
    - Importación modular fragmentada desde la CDN estable para evitar b
-lo de Control de Accesos Basado en Roles (RBAC) cruzando el DNI del usuario logueado en sessionStorage.
+     lo de Control de Accesos Basado en Roles (RBAC) cruzando el DNI del usuario logueado en sessionStorage.
 
 2. ADUANA LOCAL PREFERENTE (CUIDADO ESTRICTO DE LECTURAS):
    - Con el fin de proteger la cuota del plan gratuito de Firebase, la lectura en red NUNCA es la primera opción. El sistema debe interponer una "Aduana Local" preferente utilizando 'localStorage'.

@@ -874,6 +874,27 @@
           }
           return;
         }
+         const botonBoletin = e.target.closest(".btn-fila-boletin");
+        if (botonBoletin) {
+          e.stopPropagation();
+          const dniAlumno = botonBoletin.getAttribute("data-dni");
+          const cicloActivo = domElements.filtroCiclo ? domElements.filtroCiclo.value : "2026";
+
+          if (dniAlumno) {
+            const urlBoletin = `boletin.html?dni=${encodeURIComponent(dniAlumno)}&ciclo=${encodeURIComponent(cicloActivo)}`;
+            window.open(urlBoletin, "_blank");
+
+            if (typeof window.registrarEventoLegajo === "function") {
+              await window.registrarEventoLegajo(
+                dniAlumno,
+                "MATRICULA",
+                "EMISION_BOLETIN",
+                `Se despachó y visualizó en pestaña externa el Boletín de Calificaciones para el Ciclo Lectivo ${cicloActivo}.`
+              );
+            }
+          }
+          return;
+        }
       });
     }
 
