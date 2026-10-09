@@ -23,12 +23,12 @@ chkReverso. addEventListener('change', function() {
     });
 });
 
-// Orquestador Principal Autónomo de Lectura Remota con Retraso Antivolado
+// Orquestador Principal Autónomo de Lectura con Aduana Local Preferente (Colegio HASPEN)
 async function inicializarModuloImpresion() {
     try {
         // Importación modular fragmentada segura diferida de librerías base de la CDN
-        const { initializeApp } = await import( s1 + s2 + r1);
-        const { getFirestore, collection, getDocs, doc, getDoc } = await import( s1 + s2 + r2);
+        const { initializeApp } = await import(s1 + s2 + r1);
+        const { getFirestore, collection, getDocs, doc, getDoc } = await import(s1 + s2 + r2);
 
         // CONFIGURACIÓN INSTITUCIONAL EXPLÍCITA SÍNCRONA
         const firebaseConfig = {
@@ -41,85 +41,167 @@ async function inicializarModuloImpresion() {
         };
 
         // Inicialización autónoma y segura en el visor hijo
-        const app = initializeApp( firebaseConfig);
-        const db = getFirestore( app);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-        const urlParams = new URLSearchParams( window. location. search);
-        const paramDni = urlParams. get('dni');
-        const paramCursoId = urlParams. get('cursoId');
-        const paramCiclo = urlParams. get('ciclo');
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramDni = urlParams.get('dni');
+        const paramCursoId = urlParams.get('cursoId');
+        const paramCiclo = urlParams.get('ciclo');
 
         let estudiantesParaImprimir = [];
 
-        // Flujo Lote: Sincronización masiva por grupo
-        if ( paramCursoId && paramCiclo) {
-            indicadorCarga. textContent = "🔄 Sincronizando nómina de curso de Firestore...";
-            const snapAlumnos = await getDocs( collection( db, "alumnos"));
-            snapAlumnos. forEach( docSnap => {
-                const alu = docSnap. data();
-                if ( alu. cursoId === paramCursoId && alu. cicloLectivo === paramCiclo) {
-                    estudiantesParaImprimir. push( alu);
-                }
-            });
-            estudiantesParaImprimir. sort(( a, b) => ( a. nombre || ""). localeCompare( b. nombre || ""));
-        }
-        // Flujo Individual: Sincronización por documento
-        else if ( paramDni) {
-            indicadorCarga. textContent = "🔄 Cargando legajo digital individual...";
-            const snapAlu = await getDoc( doc( db, "alumnos", paramDni));
-            if ( snapAlu. exists()) {
-                estudiantesParaImprimir. push( snapAlu. data());
+        // FUNCIÓN AUXILIAR DE DESCIFRADO OFICIAL DE LA PLATAFORMA (PILAR 2)
+        function descifrarDatosLocales(stringCifrado) {
+            if (!stringCifrado) return null;
+            try {
+                return JSON.parse(decodeURIComponent(atob(stringCifrado)));
+            } catch (e) {
+                console.error("Error al descifrar datos de la Aduana Local:", e);
+                return null;
             }
         }
 
-        if ( estudiantesParaImprimir. length === 0) {
-            indicadorCarga. textContent = "⚠ No se hallaron matrículas cargadas.";
-            contenedorHojas. innerHTML = `<div style="color:white; font-weight:bold; padding:40px; text-align:center;">La consulta no devolvió ningún legajo compatible.</div>`;
+        // =========================================================================
+        // ESCUDO N° 1: ADUANA LOCAL PREFERENTE SOBRE ALUMNOS (COSTO CERO)
+        // =========================================================================
+        const claveMaestraCache = `haspen_indice_central_alumnos`;
+        const datosLocalesCifrados = localStorage.getItem(claveMaestraCache);
+        let baseDeDatosLocal = [];
+
+        if (datosLocalesCifrados) {
+            baseDeDatosLocal = descifrarDatosLocales(datosLocalesCifrados) || [];
+        }
+
+        if (paramCursoId && paramCiclo) {
+            indicadorCarga.textContent = "🔍 Consultando nómina de curso en Aduana Local...";
+            // Filtrado nativo directo en memoria RAM local
+            estudiantesParaImprimir = baseDeDatosLocal.filter(alu => alu.cursoId === paramCursoId && alu.cicloLectivo === paramCiclo);
+            
+            // CACHE MISS: Si no hay registros en LocalStorage para ese curso, va a Firebase
+            if (estudiantesParaImprimir.length === 0) {
+                indicadorCarga.textContent = "🔄 Cache Miss: Sincronizando nómina de curso de Firestore...";
+                const snapAlumnos = await getDocs(collection(db, "alumnos"));
+                
+                // Telemetría oficial
+                if (typeof window.actualizarContadoresMonitor === "function" && !snapAlumnos.empty) {
+                    window.actualizarContadoresMonitor("firebase_lectura", snapAlumnos.size);
+                }
+
+                snapAlumnos.forEach(docSnap => {
+                    const alu = docSnap.data();
+                    if (alu.cursoId === paramCursoId && alu.cicloLectivo === paramCiclo) {
+                        estudiantesParaImprimir.push(alu);
+                    }
+                    
+                    // Actualización silenciosa de la base local
+                    const idx = baseDeDatosLocal.findIndex(l => l.dni === alu.dni);
+                    if (idx !== -1) baseDeDatosLocal[idx] = alu;
+                    else baseDeDatosLocal.push(alu);
+                });
+
+                localStorage.setItem(claveMaestraCache, btoa(encodeURIComponent(JSON.stringify(baseDeDatosLocal))));
+            }
+            estudiantesParaImprimir.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+        } 
+        else if (paramDni) {
+            indicadorCarga.textContent = "🔍 Recuperando legajo de estudiante de la Aduana Local...";
+            const alumnoEncontradoLocal = baseDeDatosLocal.find(alu => alu.dni === paramDni);
+
+            if (alumnoEncontradoLocal) {
+                estudiantesParaImprimir.push(alumnoEncontradoLocal);
+            } else {
+                // CACHE MISS INDIVIDUAL
+                indicadorCarga.textContent = "🔄 Cache Miss: Consultando legajo individual en la nube...";
+                const snapAlu = await getDoc(doc(db, "alumnos", paramDni));
+                
+                if (typeof window.actualizarContadoresMonitor === "function") {
+                    window.actualizarContadoresMonitor("firebase_lectura", 1);
+                }
+
+                if (snapAlu.exists()) {
+                    const aluData = snapAlu.data();
+                    estudiantesParaImprimir.push(aluData);
+                    baseDeDatosLocal.push(aluData);
+                    localStorage.setItem(claveMaestraCache, btoa(encodeURIComponent(JSON.stringify(baseDeDatosLocal))));
+                }
+            }
+        }
+
+        if (estudiantesParaImprimir.length === 0) {
+            indicadorCarga.textContent = "⚠ No se hallaron matrículas cargadas.";
+            contenedorHojas.innerHTML = `<div style="color:white; font-weight:bold; padding:40px; text-align:center;">La consulta no devolvió ningún legajo compatible.</div>`;
             return;
         }
 
-        // Descarga relacional unificada libre de bucles internos
-        const snapCursos = await getDocs( collection( db, "cursos"));
+        // Descarga relacional unificada de Cursos para evitar bucles anidados
+        const snapCursos = await getDocs(collection(db, "cursos"));
         const listaCursos = [];
-        snapCursos. forEach( c => listaCursos. push( c. data()));
+        snapCursos.forEach(c => listaCursos.push(c.data()));
 
-        const snapCalificaciones = await getDocs( collection( db, "calificaciones"));
+        // =========================================================================
+        // CORRECCIÓN DEL MOTOR DE CALIFICACIONES: COLECCIÓN REAL "alumnos_calificaciones"
+        // =========================================================================
+        indicadorCarga.textContent = "🔄 Recuperando matriz de calificaciones oficiales...";
+        const snapCalificaciones = await getDocs(collection(db, "alumnos_calificaciones"));
         const listaCalificaciones = [];
-        snapCalificaciones. forEach( cal => listaCalificaciones. push( cal. data()));
+        
+        if (typeof window.actualizarContadoresMonitor === "function" && !snapCalificaciones.empty) {
+            window.actualizarContadoresMonitor("firebase_lectura", snapCalificaciones.size);
+        }
+        snapCalificaciones.forEach(cal => listaCalificaciones.push(cal.data()));
 
         let htmlCompiladoMasivo = "";
 
         for ( const alumno of estudiantesParaImprimir) {
-            const cursoRef = listaCursos. find( c => c. id === alumno. cursoId);
-            const cursoTexto = cursoRef ? `${ cursoRef. ciclo} ° "${ cursoRef. division}"` : "Mesa Entrada";
-            const turnoTexto = cursoRef ? cursoRef. turno || "S/D" : "S/D";
-            const materiasEstructura = cursoRef ? cursoRef. materias || [] : [];
+            const cursoRef = listaCursos.find(c => c.id === alumno.cursoId);
+            const cursoTexto = cursoRef ? `${cursoRef.ciclo} ° "${cursoRef.division}"` : "Mesa Entrada";
+            const turnoTexto = cursoRef ? cursoRef.turno || "S/D" : "S/D";
+            const materiasEstructura = cursoRef ? cursoRef.materias || [] : [];
 
+            // Mapeo adaptivo al esquema de datos real del Colegio HASPEN
             const calificacionesEstudiante = {};
-            listaCalificaciones. forEach( cData => {
-                if ( cData. alumnoDni === alumno. dni) {
-                    calificacionesEstudiante[ cData. materia] = cData. cuatrimestres || {};
+            
+            listaCalificaciones.forEach(cData => {
+                if (String(cData.alumnoDni).trim() === String(alumno.dni).trim()) {
+                    const materiaKey = cData.materia ? cData.materia.trim() : "";
+                    if (materiaKey) {
+                        const n = cData.notes || cData.notas || {};
+                        const t1 = n.trim1 || {};
+                        const t2 = n.trim2 || {};
+
+                        calificacionesEstudiante[materiaKey] = {
+                            c1_nota: cData.notaCuatrimestre1 !== null && cData.notaCuatrimestre1 !== undefined && cData.notaCuatrimestre1 !== "" ? String(cData.notaCuatrimestre1) : "-",
+                            c2_nota: cData.notaCuatrimestre2 !== null && cData.notaCuatrimestre2 !== undefined && cData.notaCuatrimestre2 !== "" ? String(cData.notaCuatrimestre2) : "-",
+                            nota_final: cData.notaFinal !== null && cData.notaFinal !== undefined && cData.notaFinal !== "" ? String(cData.notaFinal) : "-",
+                            diciembre: cData.notaDiciembre !== null && cData.notaDiciembre !== undefined && cData.notaDiciembre !== "" ? String(cData.notaDiciembre) : "-",
+                            febrero: cData.notaFebrero !== null && cData.notaFebrero !== undefined && cData.notaFebrero !== "" ? String(cData.notaFebrero) : "-",
+                            observaciones: cData.observaciones || ""
+                        };
+                    }
                 }
             });
 
-            htmlCompiladoMasivo += generarHTMLFrenteBoletin( alumno, cursoTexto, turnoTexto, materiasEstructura, calificacionesEstudiante) +
-                                   generarHTMLReversoBoletin( alumno, cursoTexto, turnoTexto);
+            htmlCompiladoMasivo += generarHTMLFrenteBoletin(alumno, cursoTexto, turnoTexto, materiasEstructura, calificacionesEstudiante) +
+                                   generarHTMLReversoBoletin(alumno, cursoTexto, turnoTexto);
         }
 
-        contenedorHojas. innerHTML = htmlCompiladoMasivo;
-        indicadorCarga. textContent = `📋 Boletines listos para impresión: ${ estudiantesParaImprimir. length}`;
-        btnImprimir. disabled = false;
+        contenedorHojas.innerHTML = htmlCompiladoMasivo;
+        indicadorCarga.textContent = `📋 Boletines listos para impresión: ${estudiantesParaImprimir.length}`;
+        btnImprimir.disabled = false;
 
-    } catch ( error) {
-        console. error("Error en canal de datos Firestore:", error);
-        indicadorCarga. textContent = "❌ Error al conectar con la base de datos distribuida.";
+    } catch (error) {
+        console.error("Error en canal de datos Firestore:", error);
+        indicadorCarga.textContent = "❌ Error al conectar con la base de datos distribuida.";
     }
 }
+
 
 // --- MICRO-RETRASO DE SEGURIDAD (RESUELVE EL CONGELAMIENTO EN LOCAL) ---
 setTimeout( inicializarModuloImpresion, 100);
 
 // --- PLANTILLA: CARILLA FRENTE (NOTAS) ---
+// --- PLANTILLA: CARILLA FRENTE (NOTAS Y CALIFICACIONES REALES) ---
 function generarHTMLFrenteBoletin( alumno, cursoTexto, turnoTexto, materias, calificaciones) {
     let filasMateriasHTML = "";
 
@@ -127,30 +209,28 @@ function generarHTMLFrenteBoletin( alumno, cursoTexto, turnoTexto, materias, cal
         filasMateriasHTML = `<tr><td colspan="7" style="padding:10px; text-align:center; color:#666;">Sin espacios curriculares asignados.</td></tr>`;
     } else {
         materias. forEach( materia => {
-            const c = calificaciones[ materia] || {};
-            const c1 = c. c1_nota || "0";
-            const c2 = c. c2_nota || "0";
-            const fin = c. nota_final || "0";
-            const dic = c. diciembre || "0";
-            const feb = c. febrero || "0";
+            // Extraer el objeto mapeado de la materia o inicializarlo vacío
+            const c = calificaciones[ materia.trim() ] || {};
+            
+            // CORRECCIÓN HISTÓRICA: Sincronización absoluta con el motor de base de datos del Paso 1
+            const c1  = c. c1_nota     && c. c1_nota     !== "0" ? c. c1_nota     : "-";
+            const c2  = c. c2_nota     && c. c2_nota     !== "0" ? c. c2_nota     : "-";
+            const fin = c. nota_final  && c. nota_final  !== "0" ? c. nota_final  : "-";
+            const dic = c. diciembre   && c. diciembre   !== "0" ? c. diciembre   : "-";
+            const feb = c. febrero     && c. febrero     !== "0" ? c. febrero     : "-";
             const obs = c. observaciones || "";
 
-           // =========================================================================
-// ANCLA DE BÚSQUEDA: filasMateriasHTML += ` <tr style="border-bottom: 1px solid #000000;">
-// MODIFICACIÓN QUIRÚRGICA: INYECTAR CLASE Y DATA-LABELS MANTENIENDO TU LÓGICA
-// =========================================================================
-        filasMateriasHTML += `
-        <tr class="fila-materia-responsiva" style="border-bottom: 1px solid #000000;">
-            <td data-label="Asignatura" style="text-align:left; font-weight:bold; font-size:9px; padding:3px 5px; border:1px solid #000000;">${materia.toUpperCase()}</td>
-            <td data-label="1er Cuatrimestre" style="border:1px solid #000000; text-align:center; font-size:10px;">${c1}</td>
-            <td data-label="2do Cuatrimestre" style="border:1px solid #000000; text-align:center; font-size:10px;">${c2}</td>
-            <td data-label="Final" style="border:1px solid #000000; text-align:center; font-weight:bold; font-size:10px; background:#f1f5f9;">${fin}</td>
-            <td data-label="Diciembre" style="border:1px solid #000000; text-align:center; font-size:10px;">${dic}</td>
-            <td data-label="Febrero" style="border:1px solid #000000; text-align:center; font-size:10px;">${feb}</td>
-            <td data-label="Observaciones" style="border:1px solid #000000; text-align:left; font-size:8px; padding:2px 4px;">${obs}</td>
-        </tr>
-        `;
-
+            filasMateriasHTML += `
+            <tr class="fila-materia-responsiva" style="border-bottom: 1px solid #000000;">
+                <td data-label="Asignatura" style="text-align:left; font-weight:bold; font-size:9px; padding:3px 5px; border:1px solid #000000;">${materia.toUpperCase()}</td>
+                <td data-label="1er Cuatrimestre" style="border:1px solid #000000; text-align:center; font-size:10px;">${c1}</td>
+                <td data-label="2do Cuatrimestre" style="border:1px solid #000000; text-align:center; font-size:10px;">${c2}</td>
+                <td data-label="Final" style="border:1px solid #000000; text-align:center; font-weight:bold; font-size:10px; background:#f1f5f9;">${fin}</td>
+                <td data-label="Diciembre" style="border:1px solid #000000; text-align:center; font-size:10px;">${dic}</td>
+                <td data-label="Febrero" style="border:1px solid #000000; text-align:center; font-size:10px;">${feb}</td>
+                <td data-label="Observaciones" style="border:1px solid #000000; text-align:left; font-size:8px; padding:2px 4px;">${obs}</td>
+            </tr>
+            `;
         });
     }
 
@@ -200,7 +280,7 @@ function generarHTMLFrenteBoletin( alumno, cursoTexto, turnoTexto, materias, cal
         </table>
 
         <div style="margin-top:6px; font-size:8px; font-weight:bold; text-transform:uppercase; text-align:left;">
-            OBSERVACIONES: Por espacios adeudados comunicarse con Administration
+            OBSERVACIONES: Por espacios adeudados comunicarse con Administración
         </div>
 
         <div style="margin-top:4px; text-align:right; font-size:9px;">
@@ -215,6 +295,7 @@ function generarHTMLFrenteBoletin( alumno, cursoTexto, turnoTexto, materias, cal
     </div>
     `;
 }
+
 
 // --- PLANTILLA: CARILLA REVERSO (PORTADA) ---
 function generarHTMLReversoBoletin( alumno, cursoTexto, turnoTexto) {
