@@ -1,0 +1,35 @@
+
+📝 MINUTA TÉCNICA DE DESARROLLO: REINGENIERÍA MÓDULO HISTORIAL (COLEGIO HASPEN)
+
+
+📌 1. CONTEXTO GENERAL DEL PROYECTO
+
+• Institución: Colegio Provincial HASPEN (Río Grande, Tierra del Fuego).
+• Sistema: Plataforma Web Centralizada de Gestión Escolar y Auditoría Forense.
+• Motor de Persistencia: Cloud Firestore (Instancia: gestion-alumnos-eeb24).
+• Objetivo de la Sesión: Rediseño total de la pantalla de trayectoria del alumno (historial.html e historial-view.js) para pasar de una lista de eventos plana a un panel analítico horizontal estructurado por años.
+
+🛠️ 2. PILARES ARQUITECTÓNICOS APLICADOS Y RESPETADOS
+
+1. Aduana Local Preferente (Pilar 2): Implementación obligatoria de escudo de lecturas en localStorage. Los datos del alumno y eventos se recuperan cifrados simétricamente con btoa(encodeURIComponent(JSON.stringify(datos))) y se procesan en memoria con filtros nativos (.filter/.find). La red de Firebase solo se toca ante un Cache Miss.
+2. Aislamiento de Entornos (Pilar 3): Claves de caché segmentadas de forma unívoca por contexto (haspen_auditoria_alumno_[DNI] y haspen_auditoria_eventos_[DNI]) para evitar colisiones entre operadores.
+3. Integridad de la Lógica y Módulo Inmutable (Pilar 5): Se mantuvo el archivo inmutable historial.js intacto (window.registrarEventoLegajo) para preservar el sistema forense que utilizan otras pantallas de la plataforma.
+
+📐 3. NUEVO DISEÑO ESTRUCTURAL IMPLEMENTADO (LAYOUT DE TRES FRANJAS)
+
+Se eliminó la vieja grilla asimétrica de dos columnas y se compactó el HTML (reduciendo el archivo de 600 a 350 líneas) dividiendo la pantalla en tres franjas horizontales de ancho completo debajo de la cabecera institucional azul (la cual quedó intacta):
+• Franja Superior 1 (Legajo Administrativo): Contiene tres tarjetas fijas (section): Datos del estudiante (Nombre, DNI, Curso, Ciclo), Registro de Matrícula (Fecha de inscripción original y condición) y Estado Forense (Semáforo reactivo que analiza el historial completo en busca de modificaciones de actas manuales).
+• Franja Media 2 (Trayectoria Cronológica 1° a 6°): Banda de tarjetas horizontales interactivas que representan los 6 años escolares de la institución. Calculan en caliente: materias aprobadas, desaprobadas, promedio anual y materias previas acumuladas. Cambian de color según el riesgo (🔴 Alto si hay anomalías o modificaciones sospechosas / 🟢 Bajo si está limpio).
+• Franja Inferior 3 (Visor de Boletines Reactivo): Grilla interactiva tipo acta de calificaciones. Reacciona al hacer clic sobre cualquiera de las tarjetas de la franja media, desplegando el desglose analítico de asignaturas, notas por trimestre (1°, 2° y 3°), promedio final, estado y la firma del profesor auditor de ese ciclo lectivo específico.
+
+🎯 4. LOGROS ALCANZADOS EN ESTA SESIÓN
+
+• Reescritura completa de historial.html: Limpieza de CSS interno obsoleto, remoción de la botonera lateral izquierda anticuada e inyección de los contenedores de las tres franjas horizontales adaptadas a Tailwind CSS.
+• Reescritura completa de historial-view.js: Integración del desempaque y cifrado de la Aduana Local, lógica matemática para procesar el pool de eventos en memoria y asignación de EventListeners para que las tarjetas manejen el foco del visor de boletines inferior de forma dinámica.
+
+🚀 5. ALCANCE Y PENDIENTES PARA LA PRÓXIMA SESIÓN
+
+Al retomar la sesión de desarrollo, debemos enfocarnos en depurar varias partes que actualmente no están funcionando, revisando los siguientes puntos críticos:
+• Revisión del Módulo de Trazabilidad: Validar las condiciones de disparo del historial para asegurar que no se registren movimientos rutinarios de clicks o lecturas, limitándolo estrictamente a eventos críticos (modificaciones manuales de notas de trimestres cerrados, cargas por equivalencia externa, etc.).
+• Lógica de Alumnos Repitentes: Validar y ajustar el motor de inferencia en historial-view.js para asegurar que si un alumno recursa un año, el sistema duplique y pinte de forma consecutiva la tarjeta en la Franja Media (ej: dos tarjetas de 3° Año, una con ciclo 2020 con riesgo alto/no promocionado, y otra al lado con ciclo 2021 con éxito).
+• Depuración de Sincronización de Base de Datos: Verificar inconsistencias en la lectura de los campos de Firestore (como las propiedades de datos_duros, notaAnterior o los IDs de cursos) que puedan estar provocando que algunas métricas se muestren en cero o rompan el renderizado en la tabla del boletín.
