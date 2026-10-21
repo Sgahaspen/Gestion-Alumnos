@@ -296,15 +296,15 @@
         </div>
 
 
-        <!-- ========================================================================= -->
+               <!-- ========================================================================= -->
         <!-- FRANJA HORIZONTAL MEDIA 2: BARRA CRONOLÓGICA DE TRAYECTORIA (1° A 6°)     -->
         <!-- ========================================================================= -->
-        <div>
-          <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; margin-bottom: 10px; padding-left: 2px;">
+        <div style="margin-top: -28px; margin-bottom: 12px;">
+          <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; margin-bottom: 8px; padding-left: 2px;">
             📊 Línea de Tiempo de Trayectoria Escolar (Seleccionar Año para ver Calificaciones)
           </div>
           <!-- Contenedor dinámico donde Javascript inyectará las tarjetas de 1° a 6° año -->
-          <div class="franja-horizontal-media" id="listaEventosTimeline">
+          <div class="franja-horizontal-media" id="listaEventosTimeline" style="margin-top: 0; padding-top: 0;">
             <!-- Inyección atómica modular de tarjetas desde historial-view.js -->
           </div>
         </div>
@@ -312,7 +312,7 @@
         <!-- ========================================================================= -->
         <!-- FRANJA HORIZONTAL INFERIOR 3: VISOR DE BOLETINES HISTÓRICOS                -->
         <!-- ========================================================================= -->
-        <div class="franja-horizontal-inferior">
+        <div class="franja-horizontal-inferior" style="margin-top: 0;">
           <section style="min-height: 200px;">
             <h3 id="tituloVisorBoletin">📋 Calificaciones del Año Académico</h3>
             <div id="visorBoletinContenedor" style="width: 100%; box-sizing: border-box;">
@@ -326,6 +326,8 @@
 
       </div>
     </main>
+
+
 
     <!-- Pie de Página Institucional (Preservado) -->
     <footer class="bg-slate-800 border-t border-slate-700 py-3 text-center text-slate-500 text-xs">

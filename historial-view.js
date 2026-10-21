@@ -219,27 +219,108 @@
             { id: "6", nombre: "6° Año", baseAnio: 2023 }
         ];
 
-                // ---------------------------------------------------------------------------------
-        // 📊 MOTOR DE REDIBUJADO: FRANJA HORIZONTAL MEDIA 2 (TARJETAS 1° A 6°)
+        // ---------------------------------------------------------------------------------
+        // 📊 MOTOR DE REDIBUJADO EVOLUCIONADO: TRAYECTORIAS REALES Y REPITENCIAS (Pilar 5)
         // ---------------------------------------------------------------------------------
         function dibujarTarjetasTrayectoria() {
             listaTarjetasAnios.innerHTML = "";
             let htmlBandaMedia = "";
 
-            estructuraCronologicaAños.forEach(bloque => {
-                // Filtrado adaptativo en memoria nativa (Pilar 2)
+            // 1. Determinar los extremos cronológicos de la historia del alumno
+            const anioActualSistema = parseInt(alumno.cicloLectivo) || 2026;
+            
+            // Extraer todos los años calendario donde el alumno tenga alguna actividad real en nuestra base
+            const aniosConEvidencia = todosLosEventosBici.map(ev => {
+                return ev.ciclo_lectivo ? parseInt(ev.ciclo_lectivo) : null;
+            }).filter(a => a !== null);
+
+            // Deducir el año de inicio (mínimo encontrado, o año de inscripción, o cálculo inverso estándar)
+            let anioInicioRef = anioActualSistema;
+            if (alumno.fechaInscripcion && alumno.fechaInscripcion.includes("/")) {
+                const partesFecha = alumno.fechaInscripcion.split("/");
+                const anioInsc = parseInt(partesFecha[partesFecha.length - 1]);
+                if (!isNaN(anioInsc)) anioInicioRef = anioInsc;
+            }
+            if (aniosConEvidencia.length > 0) {
+                const minEvidencia = Math.min(...aniosConEvidencia);
+                if (minEvidencia < anioInicioRef) anioInicioRef = minEvidencia;
+            }
+
+            // Asegurar un rango coherente (mínimo un barrido lineal desde su inicio teórico hasta el año actual)
+            const rangoAniosCronologicos = [];
+            for (let a = anioInicioRef; a <= anioActualSistema; a++) {
+                rangoAniosCronologicos.push(a);
+            }
+
+            // 2. Procesar año por año calendario de forma secuencial (Soporta ilimitadas tarjetas por repitencia)
+            rangoAniosCronologicos.forEach(anioCalendarioLoop => {
+                
+                // Filtrado adaptativo en memoria nativa (Pilar 2) para este año calendario específico
                 const registrosAnio = todosLosEventosBici.filter(ev => {
                     const cLectivo = ev.ciclo_lectivo ? ev.ciclo_lectivo.toString() : "";
-                    return cLectivo.includes(bloque.baseAnio.toString()) || (ev.datos_duros && String(ev.datos_duros.curso).includes(bloque.id));
+                    return cLectivo === anioCalendarioLoop.toString();
                 });
 
-                // Separar registros académicos puros de alertas de auditoría forense
+                // Separar registros académicos de alertas administrativas
                 const registrosNotas = registrosAnio.filter(ev => ev.fuenteColeccion === "alumnos_calificaciones" || ev.categoria === "CALIFICACIONES");
                 const registrosAlertas = registrosAnio.filter(ev => ev.fuenteColeccion === "historial_eventos" && ev.categoria !== "CALIFICACIONES");
 
+                // --- ESCENARIO A: EL AÑO ESTÁ VACÍO (CICLO EN OTRO COLEGIO) ---
+                if (registrosAnio.length === 0) {
+                    const colorBorde = "#cbd5e1"; // Gris
+                    const badgeTexto = "Externo";
+                    const badgeEstilo = "background: #f1f5f9; color: #475569; font-weight: bold;";
+
+                    htmlBandaMedia += `
+                    <div class="tarjeta-anio-cronologica" data-anio-calendario="${anioCalendarioLoop}" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBorde}; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px; width: 240px; box-sizing: border-box; opacity: 0.85; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 800; color: #475569; margin-bottom: 2px;">Ciclo en Otro</div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Ciclo Lectivo: <b>${anioCalendarioLoop}</b></div>
+                            <div style="font-size: 11px; color: #94a3b8; font-style: italic; line-height: 1.4; margin-top: 10px;">
+                                ℹ️ No se registran movimientos ni calificaciones oficiales en HASPEN. Trayectoria cursada en otra institución.
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 11px;">
+                            <span style="color: #64748b;">Estado:</span>
+                            <span style="padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; ${badgeEstilo}">${badgeTexto}</span>
+                        </div>
+                    </div>`;
+                    return; // Saltar al siguiente año
+                }
+                // --- ESCENARIO B: EL AÑO TIENE EVIDENCIA (REGULAR / REPITENTE) ---
+                // Deducir el curso real que hizo el alumno en este año basándonos en los datos duros de las notas
+                let cursoDetectadoId = "1";
+                let cursoDetectadoNombre = "1° Año";
+
+                if (registrosNotas.length > 0) {
+                    const primerRegistro = registrosNotas[0];
+                    const idCursoDuro = primerRegistro.datos_duros ? String(primerRegistro.datos_duros.curso) : "";
+                    
+                    if (idCursoDuro.includes("2") || idCursoDuro.includes("2°")) { cursoDetectadoId = "2"; cursoDetectadoNombre = "2° Año"; }
+                    else if (idCursoDuro.includes("3") || idCursoDuro.includes("3°")) { cursoDetectadoId = "3"; cursoDetectadoNombre = "3° Año"; }
+                    else if (idCursoDuro.includes("4") || idCursoDuro.includes("4°")) { cursoDetectadoId = "4"; cursoDetectadoNombre = "4° Año"; }
+                    else if (idCursoDuro.includes("5") || idCursoDuro.includes("5°")) { cursoDetectadoId = "5"; cursoDetectadoNombre = "5° Año"; }
+                    else if (idCursoDuro.includes("6") || idCursoDuro.includes("6°")) { cursoDetectadoId = "6"; cursoDetectadoNombre = "6° Año"; }
+                } else {
+                    if (anioCalendarioLoop === anioActualSistema) {
+                        const textoCurso = (alumno.cursoTextoMapeado || "").toLowerCase();
+                        if (textoCurso.includes("2°")) { cursoDetectadoId = "2"; cursoDetectadoNombre = "2° Año"; }
+                        else if (textoCurso.includes("3°")) { cursoDetectadoId = "3"; cursoDetectadoNombre = "3° Año"; }
+                        else if (textoCurso.includes("4°")) { cursoDetectadoId = "4"; cursoDetectadoNombre = "4° Año"; }
+                        else if (textoCurso.includes("5°")) { cursoDetectadoId = "5"; cursoDetectadoNombre = "5° Año"; }
+                        else if (textoCurso.includes("6°")) { cursoDetectadoId = "6"; cursoDetectadoNombre = "6° Año"; }
+                    }
+                }
+
+                // Regla de Negocio: Orientación Básica (1° a 3°) o Especialidad del legajo (4° a 6°)
+                let etiquetaOrientacion = "Básico";
+                if (["4", "5", "6"].includes(cursoDetectadoId)) {
+                    etiquetaOrientacion = alumno.orientacion || "Orientado";
+                }
+
                 const tieneAlertaAnual = registrosAlertas.some(ev => ev.categoria === "OBSERVACION" || ev.subcategoria === "Modificación de Nota" || ev.subcategoria === "MODIFICACION_LEGAJO");
                 
-                // Mapeo adaptivo de notas basado en la matriz real de calificaciones de la plataforma
+                // Mapeo adaptativo de notas en memoria
                 let poolNotas = registrosNotas.map(ev => {
                     const dDuros = ev.datos_duros || {};
                     const nFinal = ev.notaFinal || dDuros.notaFinal || dDuros.notaNueva || dDuros.nota || 0;
@@ -249,7 +330,7 @@
                 let sumaNotas = poolNotas.reduce((a, b) => a + b, 0);
                 let promedio = poolNotas.length > 0 ? (sumaNotas / poolNotas.length).toFixed(2) : "0.00";
 
-                // Cálculo reglamentario: Aprobación oficial con nota mayor o igual a 6
+                // Cálculo reglamentario de materias (Aprobación >= 6)
                 let totalMaterias = registrosNotas.length;
                 let desaprobadas = registrosNotas.filter(ev => {
                     const dDuros = ev.datos_duros || {};
@@ -260,34 +341,33 @@
                 let aprobadas = totalMaterias - desaprobadas;
                 let previas = desaprobadas;
 
-                // Semántica del Semáforo de Riesgo Anual
-                let colorBorde = "#10b981"; // Verde (Bajo Riesgo)
+                // Semáforo de Riesgo Académico Institucional Inteligente (Cargas parciales de prueba)
+                let colorBorde = "#10b981"; // Verde (Bajo por defecto)
                 let badgeTexto = "Bajo";
                 let badgeEstilo = "background: #e6f4ea; color: #137333;";
 
-                if (tieneAlertaAnual || previas > 2) {
-                    colorBorde = "#ef4444"; // Rojo (Riesgo Alto por alteraciones o más de 2 materias previas)
+                if (previas > 2) {
+                    colorBorde = "#ef4444"; // Rojo
                     badgeTexto = "Alto";
                     badgeEstilo = "background: #fce8e6; color: #c5221f; font-weight: bold;";
                 } else if (previas > 0 && previas <= 2) {
-                    colorBorde = "#ea580c"; // Naranja (Riesgo Medio con 1 o 2 previas)
+                    colorBorde = "#ea580c"; // Naranja
                     badgeTexto = "Medio";
                     badgeEstilo = "background: #fff7ed; color: #c2410c; font-weight: bold;";
-                } else if (registrosAnio.length === 0) {
-                    colorBorde = "#cbd5e1"; // Gris (Sin actividad académica registrada en actas)
-                    badgeTexto = "Inactivo";
-                    badgeEstilo = "background: #f1f5f9; color: #64748b;";
-                    promedio = "---";
-                    aprobadas = 0;
-                    desaprobadas = 0;
-                    previas = 0;
+                } else if (parseFloat(promedio) >= 6.00 && desaprobadas === 0) {
+                    // Salvaguarda: Alumno regular sin aplazos con notas parciales
+                    colorBorde = "#10b981"; 
+                    badgeTexto = "Bajo";
+                    badgeEstilo = "background: #e6f4ea; color: #137333;";
                 }
 
                 htmlBandaMedia += `
-                <div class="tarjeta-anio-cronologica" data-anio-id="${bloque.id}" data-anio-nombre="${bloque.nombre}" data-anio-calendario="${bloque.baseAnio}" style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBorde}; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px; box-sizing: border-box; cursor: pointer;">
+                <div class="tarjeta-anio-cronologica" data-anio-id="${cursoDetectadoId}" data-anio-nombre="${cursoDetectadoNombre}" data-anio-calendario="${anioCalendarioLoop}" style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBorde}; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 170px; width: 240px; box-sizing: border-box; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                     <div>
-                        <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">${bloque.nombre}</div>
-                        <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Ciclo Lectivo: <b>${bloque.baseAnio}</b></div>
+                        <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cursoDetectadoNombre} - ${etiquetaOrientacion}">
+                            ${cursoDetectadoNombre} - <span style="font-weight: 500; color: #475569;">${etiquetaOrientacion}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Ciclo Lectivo: <b>${anioCalendarioLoop}</b></div>
                         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #475569;">
                             <div style="display: flex; justify-content: space-between;"><span>Aprobadas:</span><b style="color: #10b981;">${aprobadas}</b></div>
                             <div style="display: flex; justify-content: space-between;"><span>Desaprobadas:</span><b style="${desaprobadas > 0 ? 'color: #ef4444;' : ''}">${desaprobadas}</b></div>
@@ -302,13 +382,22 @@
                 </div>`;
             });
 
+            // Forzar Flexbox contenedor fluido alineado a la izquierda para evitar deformaciones
+            listaTarjetasAnios.style.display = "flex";
+            listaTarjetasAnios.style.flexWrap = "wrap";
+            listaTarjetasAnios.style.gap = "16px";
+            listaTarjetasAnios.style.justifyContent = "flex-start";
             listaTarjetasAnios.innerHTML = htmlBandaMedia;
 
+            // Asociar eventos de click para abrir el visor de boletín inferior (solo tarjetas con datos locales)
             document.querySelectorAll('.tarjeta-anio-cronologica').forEach(tarjeta => {
                 tarjeta.addEventListener('click', function() {
                     const anioId = this.getAttribute('data-anio-id');
                     const anioNombre = this.getAttribute('data-anio-nombre');
                     const anioCalendario = this.getAttribute('data-anio-calendario');
+                    
+                    if (!anioId) return;
+
                     if (typeof window.activarFocoTarjetaAño === 'function') {
                         window.activarFocoTarjetaAño(this, `${anioNombre} (${anioCalendario})`);
                     }
@@ -316,6 +405,7 @@
                 });
             });
         }
+
 
 
             // ---------------------------------------------------------------------------------
