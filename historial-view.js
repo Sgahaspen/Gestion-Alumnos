@@ -126,11 +126,17 @@
         document.getElementById('cursoAlumnoHistorial').textContent = alumno.cursoTextoMapeado;
         document.getElementById('cicloAlumnoHistorial').textContent = alumno.cicloLectivo || "2026";
         
-        if (alumno.fechaInscripcion) {
+                // Fallback Inteligente: Si no hay fecha de inscripción, se asume el ciclo lectivo en curso
+        if (alumno.fechaInscripcion && alumno.fechaInscripcion.trim() !== "") {
             document.getElementById('fechaInscripcionHistorial').textContent = alumno.fechaInscripcion;
+        } else {
+            const anioInscripcionFallback = parseInt(alumno.cicloLectivo) || new Date().getFullYear();
+            document.getElementById('fechaInscripcionHistorial').textContent = `Ciclo ${anioInscripcionFallback} (Nuevo Ingreso)`;
         }
 
-             // ---------------------------------------------------------------------------------
+
+
+        // ---------------------------------------------------------------------------------
         // 🔍 ESCÁNER REACTIVO DE FALTANTES Y AUDITORÍA DE LEGAJO (REEMPLAZO FORENSE)
         // ---------------------------------------------------------------------------------
         const listaFaltantes = [];
