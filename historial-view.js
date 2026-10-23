@@ -124,15 +124,35 @@
         document.getElementById('nombreAlumnoHistorial').textContent = alumno.nombre || "Sin registrar";
         document.getElementById('dniAlumnoHistorial').textContent = dniEstudiante;
         document.getElementById('cursoAlumnoHistorial').textContent = alumno.cursoTextoMapeado;
-        document.getElementById('cicloAlumnoHistorial').textContent = alumno.cicloLectivo || "2026";
+        document.getElementById('cicloAlumnoHistorial').textContent = alumno.cicloLectivo || new Date().getFullYear().toString();
         
-                // Fallback Inteligente: Si no hay fecha de inscripción, se asume el ciclo lectivo en curso
-        if (alumno.fechaInscripcion && alumno.fechaInscripcion.trim() !== "") {
-            document.getElementById('fechaInscripcionHistorial').textContent = alumno.fechaInscripcion;
-        } else {
-            const anioInscripcionFallback = parseInt(alumno.cicloLectivo) || new Date().getFullYear();
-            document.getElementById('fechaInscripcionHistorial').textContent = `Ciclo ${anioInscripcionFallback} (Nuevo Ingreso)`;
+        // CORRECCIÓN INTERFAZ: Control de Orientación Académica (Tarjeta 1)
+        const elementoOrientacion = document.getElementById('orientacionAlumnoHistorial');
+        if (elementoOrientacion) {
+            const idCursoEstructural = String(alumno.cursoId || "").trim();
+            const primerCaracterAnio = idCursoEstructural.charAt(0); // Extrae el número de año (ej: "1", "4")
+            
+            if (["1", "2", "3"].includes(primerCaracterAnio)) {
+                elementoOrientacion.textContent = "Ciclo Básico";
+            } else if (["4", "5", "6"].includes(primerCaracterAnio)) {
+                elementoOrientacion.textContent = alumno.orientacion || "No asignada";
+            } else {
+                elementoOrientacion.textContent = alumno.orientacion || "Ciclo Básico";
+            }
         }
+        
+        // CORRECCIÓN INTERFAZ: Fecha de Inscripción Original (Tarjeta 2 - Registro de Matrícula)
+        const elementoFechaInscripcion = document.getElementById('fechaInscripcionHistorial');
+        if (elementoFechaInscripcion) {
+            if (alumno.fechaInscripcion && alumno.fechaInscripcion.trim() !== "") {
+                // Inyecta la fecha exacta del legajo digital de Firestore
+                elementoFechaInscripcion.textContent = alumno.fechaInscripcion.trim();
+            } else {
+                // Fallback seguro si el campo viene vacío o sin registrar en la base de datos
+                elementoFechaInscripcion.textContent = "Pendiente de Carga en Formulario de Alta";
+            }
+        }
+
 
 
 
