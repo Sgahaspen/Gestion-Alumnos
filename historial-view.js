@@ -83,7 +83,7 @@
                 todosLosEventosBici.push({ id: docSnap.id, fuenteColeccion: "historial_eventos", ...docSnap.data() });
             });
 
-            // 2. Cargar calificaciones oficiales transformándolas al formato compatible con la banda media
+                       // 2. Cargar calificaciones oficiales transformándolas al formato compatible con el Informe Pedagógico
             snapCalificaciones.forEach(docSnap => {
                 const cData = docSnap.data();
                 const notasHub = cData.notes || cData.notas || {};
@@ -102,15 +102,22 @@
                     descripcion: `Materia: ${cData.materia || "General"}`,
                     datos_duros: {
                         materia: cData.materia,
-                        notaNueva: cData.notaFinal || "0",
-                        nota: cData.notaFinal || "0",
-                        trimestre1: t1.n1 || "0",
-                        trimestre2: t2.n1 || "0",
-                        trimestre3: cData.notaFinal || "0",
-                        curso: alumno.cursoId
+                        // Mapeo simétrico de sub-periodos extraído del motor oficial del establecimiento
+                        c1_inf1: t1.n1 !== null && t1.n1 !== undefined && t1.n1 !== "" ? String(t1.n1) : "-",
+                        c1_inf2: t1.n2 !== null && t1.n2 !== undefined && t1.n2 !== "" ? String(t1.n2) : "-",
+                        c1_forta: t1.ef !== null && t1.ef !== undefined && t1.ef !== "" ? String(t1.ef) : "-",
+                        c1_nota: cData.notaCuatrimestre1 !== null && cData.notaCuatrimestre1 !== undefined && cData.notaCuatrimestre1 !== "" ? String(cData.notaCuatrimestre1) : "-",
+                        
+                        c2_inf1: t2.n1 !== null && t2.n1 !== undefined && t2.n1 !== "" ? String(t2.n1) : "-",
+                        c2_inf2: t2.n2 !== null && t2.n2 !== undefined && t2.n2 !== "" ? String(t2.n2) : "-",
+                        c2_forta: t2.ef !== null && t2.ef !== undefined && t2.ef !== "" ? String(t2.ef) : "-",
+                        c2_nota: cData.notaCuatrimestre2 !== null && cData.notaCuatrimestre2 !== undefined && cData.notaCuatrimestre2 !== "" ? String(cData.notaCuatrimestre2) : "-",
+                        
+                        nota_final: cData.notaFinal !== null && cData.notaFinal !== undefined && cData.notaFinal !== "" ? String(cData.notaFinal) : "-"
                     }
                 });
             });
+
 
             // Guardado inmediato y ofuscado simétrico local (Blindaje Atómico - Pilar 4)
             localStorage.setItem(CACHE_KEY_ALUMNO, btoa(encodeURIComponent(JSON.stringify(alumno))));
@@ -434,7 +441,7 @@
 
 
 
-            // ---------------------------------------------------------------------------------
+        // ---------------------------------------------------------------------------------
         // 📋 VISOR DETALLADO: FRANJA HORIZONTAL INFERIOR 3 (BOLETINES POR AÑO)
         // ---------------------------------------------------------------------------------
         function renderizarBoletinInferior(anioId, anioCalendario) {
@@ -446,7 +453,6 @@
             });
 
             const registrosNotas = eventosCiclo.filter(ev => ev.fuenteColeccion === "alumnos_calificaciones" || ev.categoria === "CALIFICACIONES");
-            const registrosForense = eventosCiclo.filter(ev => ev.fuenteColeccion === "historial_eventos");
 
             if (registrosNotas.length === 0) {
                 visorBoletinContenedor.innerHTML = `
@@ -456,66 +462,172 @@
                 return;
             }
 
-            let htmlTablaBoletin = `
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace; color: #334155; text-align: left; background: #ffffff;">
-                <thead>
-                    <tr style="background: #1b4d82; color: #ffffff; text-transform: uppercase; font-size: 11px;">
-                        <th style="padding: 10px; border: 1px solid #cbd5e1;">Asignatura / Espacio Curricular</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">1° Cuatrimestre</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">2° Cuatrimestre</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Nota Final</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Estado Acta</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1;">Última Firma Auditora</th>
-                    </tr>
-                </thead>
-                <tbody>`;
+            // ---------------------------------------------------------------------------------
+            // 📊 MOTOR ANALÍTICO EVALUADO EN MEMORIA LOCAL (PERIODIZACIÓN PEDAGÓGICA)
+            // ---------------------------------------------------------------------------------
+            let sumC1 = 0, countC1 = 0, aprobadasC1 = 0;
+            let sumC2 = 0, countC2 = 0, aprobadasC2 = 0;
+            let sumFinal = 0, countFinal = 0, aprobadasFinal = 0;
+            let alertasCriticas = 0;
+
+            registrosNotas.forEach(ev => {
+                const d = ev.datos_duros || {};
+                
+                // Procesar Notas de Cierre de 1° Cuatrimestre
+                const nC1 = parseFloat(d.c1_nota || 0);
+                if (!isNaN(nC1) && nC1 > 0) {
+                    sumC1 += nC1;
+                    countC1++;
+                    if (nC1 >= 6) aprobadasC1++;
+                    else alertasCriticas++;
+                }
+
+                // Procesar Notas de Cierre de 2° Cuatrimestre
+                const nC2 = parseFloat(d.c2_nota || 0);
+                if (!isNaN(nC2) && nC2 > 0) {
+                    sumC2 += nC2;
+                    countC2++;
+                    if (nC2 >= 6) aprobadasC2++;
+                    else alertasCriticas++;
+                }
+
+                // Procesar Notas Finales de Cierre de Ciclo
+                const nFinal = parseFloat(d.nota_final || 0);
+                if (!isNaN(nFinal) && nFinal > 0) {
+                    sumFinal += nFinal;
+                    countFinal++;
+                    if (nFinal >= 6) aprobadasFinal++;
+                }
+            });
+
+            const promC1 = countC1 > 0 ? (sumC1 / countC1).toFixed(2) : "0.00";
+            const promC2 = countC2 > 0 ? (sumC2 / countC2).toFixed(2) : "0.00";
+            const promFinal = countFinal > 0 ? (sumFinal / countFinal).toFixed(2) : "0.00";
+
+            const pctC1 = countC1 > 0 ? Math.round((aprobadasC1 / countC1) * 100) : 0;
+            const pctC2 = countC2 > 0 ? Math.round((aprobadasC2 / countC2) * 100) : 0;
+            const pctFinal = countFinal > 0 ? Math.round((aprobadasFinal / countFinal) * 100) : 0;
+
+            // ---------------------------------------------------------------------------------
+            // 🎨 CONSTRUCCIÓN DE COMPONENTES VISUALES EN SUB-BLOQUES DE LA FRANJA 3
+            // ---------------------------------------------------------------------------------
+            let htmlEstructura = `
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 20px; font-family: system-ui, -apple-system, sans-serif;">
+                
+                <!-- SUB-BLOQUE 1: INDICADORES ESTADÍSTICOS POR PERIODO -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    
+                    <!-- Tarjeta Métricas 1° Cuatrimestre -->
+                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #3b82f6; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <span>📈 1° Cuatrimestre</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
+                            <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC1}</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Acreditación:</span><strong>${pctC1}% (${aprobadasC1}/${countC1})</strong></div>
+                        </div>
+                        <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                            <div style="width: ${pctC1}%; background-color: #3b82f6; height: 100%; transition: width 0.4s ease;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta Métricas 2° Cuatrimestre -->
+                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #f59e0b; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <span>📈 2° Cuatrimestre</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
+                            <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC2}</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Acreditación:</span><strong>${pctC2}% (${aprobadasC2}/${countC2})</strong></div>
+                        </div>
+                        <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                            <div style="width: ${pctC2}%; background-color: #f59e0b; height: 100%; transition: width 0.4s ease;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta Métricas de Cierre Final -->
+                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #10b981; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <span>🎯 Rendimiento General Anual</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
+                            <div style="display: flex; justify-content: space-between;"><span>Promedio General:</span><strong style="color: #0f172a; font-size: 13px;">${promFinal}</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Materias Promocionadas:</span><strong>${pctFinal}% (${aprobadasFinal}/${countFinal})</strong></div>
+                        </div>
+                        <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                            <div style="width: ${pctFinal}%; background-color: #10b981; height: 100%; transition: width 0.4s ease;"></div>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- SUB-BLOQUE 2: GRILLA INSTITUCIONAL MATRICIAL COMPLETA -->
+                <div style="width: 100%; overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace; color: #334155; text-align: center; background: #ffffff; min-width: 800px;">
+                        <thead>
+                            <tr style="background: #1b4d82; color: #ffffff; text-transform: uppercase; font-size: 11px; height: 32px;">
+                                <th rowspan="2" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 30%;">Espacio Curricular / Asignatura</th>
+                                <th colspan="4" style="border: 1px solid #cbd5e1; background: #1e40af;">1° Cuatrimestre</th>
+                                <th colspan="4" style="border: 1px solid #cbd5e1; background: #b45309;">2° Cuatrimestre</th>
+                                <th rowspan="2" style="padding: 10px; border: 1px solid #cbd5e1; background: #475569; width: 10%;">Final</th>
+                            </tr>
+                            <tr style="background: #ffffff; color: #1e293b; font-weight: bold; height: 30px;">
+                                <th style="border: 1px solid #cbd5e1; width: 7%;">1° INF</th>
+                                <th style="border: 1px solid #cbd5e1; width: 7%;">2° INF</th>
+                                <th style="border: 1px solid #cbd5e1; width: 7%;">FORTA.</th>
+                                <th style="border: 1px solid #cbd5e1; background: #e0f2fe; color: #0369a1; width: 8%;">1° CUATRI</th>
+                                <th style="border: 1px solid #cbd5e1; width: 7%;">1° INF</th>
+                                <th style="border: 1px solid #cbd5e1; width: 7%;">2° INF</th>
+                                <th style="border: 1px solid #cbd5e1; width: 7%;">FORTA.</th>
+                                <th style="border: 1px solid #cbd5e1; background: #fef3c7; color: #b45309; width: 8%;">2° CUATRI</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
             registrosNotas.forEach(ev => {
                 const dExtra = ev.datos_duros || {};
                 const materiaStr = dExtra.materia || ev.descripcion || "Materia General";
-                const operadorStr = ev.operador_nombre || "Sistema";
                 
-                // Mapeo adaptativo alineado al esquema real de alumnos_calificaciones
-                let notaC1 = ev.notaCuatrimestre1 || dExtra.notaCuatrimestre1 || dExtra.trimestre1 || "-";
-                let notaC2 = ev.notaCuatrimestre2 || dExtra.notaCuatrimestre2 || dExtra.trimestre2 || "-";
-                let notaFinal = parseFloat(ev.notaFinal || dExtra.notaFinal || dExtra.notaNueva || dExtra.nota || 0);
+                // Normalización de ceros y guiones en sintonía con el protocolo escolar
+                const inf1_1 = dExtra.c1_inf1 && dExtra.c1_inf1 !== "0" ? dExtra.c1_inf1 : "-";
+                const inf1_2 = dExtra.c1_inf2 && dExtra.c1_inf2 !== "0" ? dExtra.c1_inf2 : "-";
+                const forta1 = dExtra.c1_forta && dExtra.c1_forta !== "0" ? dExtra.c1_forta : "-";
+                const notaC1  = dExtra.c1_nota  && dExtra.c1_nota  !== "0" ? dExtra.c1_nota  : "-";
+                
+                const inf2_1 = dExtra.c2_inf1 && dExtra.c2_inf1 !== "0" ? dExtra.c2_inf1 : "-";
+                const inf2_2 = dExtra.c2_inf2 && dExtra.c2_inf2 !== "0" ? dExtra.c2_inf2 : "-";
+                const forta2 = dExtra.c2_forta && dExtra.c2_forta !== "0" ? dExtra.c2_forta : "-";
+                const notaC2  = dExtra.c2_nota  && dExtra.c2_nota  !== "0" ? dExtra.c2_nota  : "-";
+                
+                const finalNota = dExtra.nota_final && dExtra.nota_final !== "0" ? dExtra.nota_final : "-";
 
-                if (notaC1 === "0" || notaC1 === 0) notaC1 = "-";
-                if (notaC2 === "0" || notaC2 === 0) notaC2 = "-";
+                // Estilizado dinámico condicional de filas
+                const tieneAplazo = parseFloat(finalNota) < 6;
+                const estiloFila = tieneAplazo ? "background-color: #fdf2f2;" : "background-color: #ffffff;";
 
-                // Verificar mutaciones en el historial forense para esta asignatura
-                const tieneMutacion = registrosForense.some(f => 
-                    (f.datos_duros && String(f.datos_duros.materia).toLowerCase() === materiaStr.toLowerCase()) || 
-                    f.descripcion.toLowerCase().includes(materiaStr.toLowerCase())
-                );
-
-                let estadoBadgHTML = `<span style="color: #10b981; font-weight: bold;">VALIDADA</span>`;
-                let estiloFila = "";
-                let notaFinalHTML = `<b>${notaFinal > 0 ? notaFinal : '-'}</b>`;
-
-                if (tieneMutacion) {
-                    const incidente = registrosForense.find(f => f.descripcion.toLowerCase().includes(materiaStr.toLowerCase())) || {};
-                    const infDuro = incidente.datos_duros || {};
-                    
-                    estadoBadgHTML = `<span style="color: #ea580c; font-weight: bold; background: #fff7ed; padding: 2px 4px; border: 1px solid #ffedd5; border-radius: 4px;">⚠️ MUTADA</span>`;
-                    estiloFila = "background-color: #fdf2f2;";
-                    notaFinalHTML = `<span style="text-decoration: line-through; color: #94a3b8; font-weight: normal; margin-right: 4px;">${infDuro.notaAnterior || '6'}</span><span style="color: #ef4444; font-weight: 800;">${infDuro.notaNueva || notaFinal}</span>`;
-                }
-
-                htmlTablaBoletin += `
-                <tr style="${estiloFila} border-bottom: 1px solid #e2e8f0;" class="hover:bg-slate-50">
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${materiaStr.toUpperCase()}</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; color: #475569;">${notaC1}</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; color: #475569;">${notaC2}</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${notaFinalHTML}</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center; font-size: 10px;">${estadoBadgHTML}</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; color: #64748b; font-size: 11px;">Prof: ${operadorStr}</td>
+                htmlEstructura += `
+                <tr style="${estiloFila} border-bottom: 1px solid #e2e8f0; height: 32px;">
+                    <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: left; font-weight: bold; color: #1e293b; text-transform: uppercase;">${materiaStr}</td>
+                    <td style="border: 1px solid #e2e8f0; color: #475569;">${inf1_1}</td>
+                    <td style="border: 1px solid #e2e8f0; color: #475569;">${inf1_2}</td>
+                    <td style="border: 1px solid #e2e8f0; color: #475569;">${forta1}</td>
+                    <td style="border: 1px solid #e2e8f0; background: #f0f9ff; font-weight: bold; color: #0369a1; font-size: 13px;">${notaC1}</td>
+                    <td style="border: 1px solid #e2e8f0; color: #475569;">${inf2_1}</td>
+                    <td style="border: 1px solid #e2e8f0; color: #475569;">${inf2_2}</td>
+                    <td style="border: 1px solid #e2e8f0; color: #475569;">${forta2}</td>
+                    <td style="border: 1px solid #e2e8f0; background: #fffbeb; font-weight: bold; color: #b45309; font-size: 13px;">${notaC2}</td>
+                    <td style="border: 1px solid #e2e8f0; background: #f1f5f9; font-weight: 800; color: #0f172a; font-size: 13px;">${finalNota}</td>
                 </tr>`;
             });
 
-            htmlTablaBoletin += `</tbody></table>`;
-            visorBoletinContenedor.innerHTML = htmlTablaBoletin;
+            htmlEstructura += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+            visorBoletinContenedor.innerHTML = htmlEstructura;
         }
+
 
 
         // Renderizado automático inicial de la franja media de tarjetas al cargar la pantalla
