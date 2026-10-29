@@ -439,7 +439,7 @@
         const totalMateriasTeoricas = esAnioBajo ? 11 : 12;
         let etiquetaOrientacion = esAnioBajo ? "Básico" : alumno.orientacion || "Orientado";
 
-        // 1. Escáner Forense: Verificar si ya existe algún cierre de ciclo anual en el lote (Pilar 5)
+              // 1. Escáner Forense: Verificar si ya existe algún cierre de ciclo anual en el lote (Pilar 5)
         const yaTieneAlgunCierreAnual = registrosNotas.some((ev) => {
           const dDuros = ev.datos_duros || {};
           const nFinalRaw = parseFloat(String(dDuros.nota_final).trim());
@@ -451,27 +451,27 @@
           .map((ev) => {
             const dDuros = ev.datos_duros || {};
 
-            const nFinal = parseFloat(String(dDuros.nota_final).trim());
-            const nC2 = parseFloat(String(dDuros.c2_nota).trim());
+            const nFinal = parseFloat(String(dDuros.nota_final || dDuros.notaFinal).trim());
+            const nC2 = parseFloat(String(dDuros.c2_nota || dDuros.notaCuatrimestre2).trim());
             const nC2_inf1 = parseFloat(String(dDuros.c2_inf1).trim());
-            const nC1 = parseFloat(String(dDuros.c1_nota).trim());
+            const nC1 = parseFloat(String(dDuros.c1_nota || dDuros.notaCuatrimestre1).trim());
             const nC1_inf1 = parseFloat(String(dDuros.c1_inf1).trim());
+            
             // Escalonamiento regresivo estricto con salvaguarda de cierre condicional por lote
             if (!isNaN(nFinal) && nFinal > 0) return nFinal;
-
-            if (yaTieneAlgunCierreAnual) {
-              // Se activa la regla condicional: si ya se inició el cierre del ciclo,
-              // las materias vacías se consideran aprobadas de forma virtual en memoria
-              return 6.0;
-            }
-
-            // Si no hay cierre de ciclo, se ejecuta el escalonamiento regresivo por estados
             if (!isNaN(nC2) && nC2 > 0) return nC2;
             if (!isNaN(nC2_inf1) && nC2_inf1 > 0) return nC2_inf1;
             if (!isNaN(nC1) && nC1 > 0) return nC1;
             if (!isNaN(nC1_inf1) && nC1_inf1 > 0) return nC1_inf1;
 
-            return null; // Si la materia está virgen de notas, no aporta al pool
+            // PARCHE DE SEGURIDAD: Si no hay notas numéricas cargadas (todos dieron NaN),
+            // pero el sistema registra el movimiento o estamos en periodo de cierres,
+            // aplicamos la regla de negocio del 6.0 virtual para no romper el promedio.
+            if (yaTieneAlgunCierreAnual || anioCalendarioLoop <= (parseInt(alumno.cicloLectivo) || 2026)) {
+              return 6.0;
+            }
+
+            return null; // Si la materia está virgen de notas en un año futuro o externo, no aporta al pool
           })
           .filter((n) => n !== null);
 
@@ -480,6 +480,7 @@
 
         let desaprobadas = 0;
         let materiasConEvidenciaDura = [];
+
 
         registrosNotas.forEach((ev) => {
           const d = ev.datos_duros || {};
@@ -499,36 +500,40 @@
         let sinNotas = Math.max(0, totalMateriasTeoricas - materiasConEvidenciaDura.length);
         const cargaAcademicaTotalAdeudada = desaprobadas + materiasPreviasAlumno;
 
-        let colorBorde = "#10b981";
-        let badgeTexto = "Bajo";
-        let badgeEstilo = "background: #e6f4ea; color: #137333;";
+                       // Regla de Negocio 4: Escala de Semáforos de Riesgo Institucional Renovada (HASPEN)
+                let colorBorde = "#10b981"; // Verde
+                let colorFondo = "rgba(16, 185, 129, 0.06)"; // Verde menta suave por defecto
+                let badgeTexto = "Bajo";
+                let badgeEstilo = "background: #e6f4ea; color: #137333;";
 
-        if (cargaAcademicaTotalAdeudada >= 1 && cargaAcademicaTotalAdeudada <= 4) {
-          colorBorde = "#10b981";
-          badgeTexto = "Bajo";
-          badgeEstilo = "background: #e6f4ea; color: #137333;";
-        } else if (cargaAcademicaTotalAdeudada === 5 || cargaAcademicaTotalAdeudada === 6) {
-          colorBorde = "#ea580c";
-          badgeTexto = "Medio";
-          badgeEstilo = "background: #fff7ed; color: #c2410c; font-weight: bold;";
-        } else if (cargaAcademicaTotalAdeudada >= 7) {
-          colorBorde = "#ef4444";
-          badgeTexto = "Alto";
-          badgeEstilo = "background: #fce8e6; color: #c5221f; font-weight: bold;";
-        }
+                if (desaprobadas > 6) {
+                    colorBorde = "#ef4444"; // Rojo
+                    colorFondo = "rgba(239, 68, 68, 0.08)"; // Rojo pastel translúcido
+                    badgeTexto = "Alto";
+                    badgeEstilo = "background: #fce8e6; color: #c5221f; font-weight: bold;";
+                } else if (desaprobadas === 5 || desaprobadas === 6) {
+                    colorBorde = "#ea580c"; // Naranja
+                    colorFondo = "rgba(234, 88, 12, 0.07)"; // Naranja cálido translúcido
+                    badgeTexto = "Medio";
+                    badgeEstilo = "background: #fff7ed; color: #c2410c; font-weight: bold;";
+                } else {
+                    colorBorde = "#10b981"; // Bajo (Hasta 4 desaprobadas)
+                    colorFondo = "rgba(16, 185, 129, 0.06)"; // Verde menta translúcido
+                    badgeTexto = "Bajo";
+                    badgeEstilo = "background: #e6f4ea; color: #137333;";
+                }
 
-        htmlBandaMedia += `
-                <div class="tarjeta-anio-cronologica" data-anio-id="${cursoDetectadoId}" data-anio-nombre="${cursoDetectadoNombre}" data-anio-calendario="${anioCalendarioLoop}" style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBorde}; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 185px; width: 240px; box-sizing: border-box; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                               htmlBandaMedia += `
+                <div class="tarjeta-anio-cronologica" data-anio-id="${cursoDetectadoId}" data-anio-nombre="${cursoDetectadoNombre}" data-anio-calendario="${anioCalendarioLoop}" style="background: ${colorFondo} !important; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBorde}; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 185px; width: 240px; box-sizing: border-box; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s;" onmouseenter="this.style.setProperty('background', '${colorFondo}', 'important'); this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.1)';" onmouseleave="this.style.setProperty('background', '${colorFondo}', 'important'); this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
                     <div>
-                        <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cursoDetectadoNombre} - ${etiquetaOrientacion}">
                             ${cursoDetectadoNombre} - <span style="font-weight: 500; color: #475569;">${etiquetaOrientacion}</span>
                         </div>
                         <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Ciclo Lectivo: <b>${anioCalendarioLoop}</b></div>
                         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #475569;">
                             <div style="display: flex; justify-content: space-between;"><span>Aprobadas:</span><b style="color: #10b981;">${aprobadas}</b></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Desaprobadas:</span><b style="${desaprobadas > 0 ? "color: #ef4444;" : ""}">${desaprobadas}</b></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Materias Previas:</span><b style="${materiasPreviasAlumno > 0 ? "color: #ea580c;" : ""}">${materiasPreviasAlumno}</b></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Sin Notas:</span><b style="${sinNotas > 0 ? "color: #2563eb;" : ""}">${sinNotas}</b></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Desaprobadas:</span><b style="${desaprobadas > 0 ? 'color: #ef4444;' : ''}">${desaprobadas}</b></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Sin Notas:</span><b style="${sinNotas > 0 ? 'color: #2563eb;' : ''}">${sinNotas}</b></div>
                             <div style="display: flex; justify-content: space-between; margin-top: 2px; padding-top: 2px; border-top: 1px dashed #f1f5f9;"><span>Promedio:</span><strong>${promedio}</strong></div>
                         </div>
                     </div>
@@ -537,6 +542,8 @@
                         <span style="padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; ${badgeEstilo}">${badgeTexto}</span>
                     </div>
                 </div>`;
+
+
       });
 
       listaTarjetasAnios.style.display = "flex";
