@@ -121,12 +121,16 @@
         todosLosEventosBici.push({ id: docSnap.id, fuenteColeccion: "historial_eventos", ...docSnap.data() });
       });
 
-      // 2. Cargar calificaciones oficiales transformándolas al formato compatible con el Informe Pedagógico
+         // 2. Cargar calificaciones oficiales transformándolas al formato compatible con el Informe Pedagógico
       snapCalificaciones.forEach((docSnap) => {
         const cData = docSnap.data();
         const notasHub = cData.notes || cData.notas || {};
         const t1 = notasHub.trim1 || {};
         const t2 = notasHub.trim2 || {};
+        
+        // Extracción limpia del año numérico del curso desde el cursoId del alumno (ej: "1" desde "1A")
+        const idCursoEstructural = String(alumno.cursoId || "1").trim();
+        const anioIdDeducido = idCursoEstructural.charAt(0); 
 
         todosLosEventosBici.push({
           id: docSnap.id,
@@ -140,6 +144,7 @@
           descripcion: `Materia: ${cData.materia || "General"}`,
           datos_duros: {
             materia: cData.materia,
+            curso: cData.cursoId || alumno.cursoId || anioIdDeducido, // BIEN ASIGNADO: Permite el cruce forense posterior
             // Mapeo simétrico de sub-periodos extraído del motor oficial del establecimiento
             c1_inf1: t1.n1 !== null && t1.n1 !== undefined && t1.n1 !== "" ? String(t1.n1) : "-",
             c1_inf2: t1.n2 !== null && t1.n2 !== undefined && t1.n2 !== "" ? String(t1.n2) : "-",
@@ -168,6 +173,7 @@
           }
         });
       });
+
 
       // Guardado inmediato y ofuscado simétrico local (Blindaje Atómico - Pilar 4)
       localStorage.setItem(CACHE_KEY_ALUMNO, btoa(encodeURIComponent(JSON.stringify(alumno))));
@@ -500,48 +506,49 @@
         let sinNotas = Math.max(0, totalMateriasTeoricas - materiasConEvidenciaDura.length);
         const cargaAcademicaTotalAdeudada = desaprobadas + materiasPreviasAlumno;
 
-                       // Regla de Negocio 4: Escala de Semáforos de Riesgo Institucional Renovada (HASPEN)
-                let colorBorde = "#10b981"; // Verde
-                let colorFondo = "rgba(16, 185, 129, 0.06)"; // Verde menta suave por defecto
+                         // Regla de Negocio 4: Escala Neomórfica de Riesgo Institucional - Colores Sólidos Puros (HASPEN)
+                let colorRiesgoFocal = "#10b981"; // Verde Vivo ("Regular Activo")
                 let badgeTexto = "Bajo";
-                let badgeEstilo = "background: #e6f4ea; color: #137333;";
+                let badgeEstilo = "background: #10b981; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(16,185,129,0.2);";
 
                 if (desaprobadas > 6) {
-                    colorBorde = "#ef4444"; // Rojo
-                    colorFondo = "rgba(239, 68, 68, 0.08)"; // Rojo pastel translúcido
+                    colorRiesgoFocal = "#ef4444"; // Rojo Alerta Sólido
                     badgeTexto = "Alto";
-                    badgeEstilo = "background: #fce8e6; color: #c5221f; font-weight: bold;";
+                    badgeEstilo = "background: #ef4444; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(239,68,68,0.2);";
                 } else if (desaprobadas === 5 || desaprobadas === 6) {
-                    colorBorde = "#ea580c"; // Naranja
-                    colorFondo = "rgba(234, 88, 12, 0.07)"; // Naranja cálido translúcido
+                    colorRiesgoFocal = "#f97316"; // Naranja Alerta Sólido
                     badgeTexto = "Medio";
-                    badgeEstilo = "background: #fff7ed; color: #c2410c; font-weight: bold;";
-                } else {
-                    colorBorde = "#10b981"; // Bajo (Hasta 4 desaprobadas)
-                    colorFondo = "rgba(16, 185, 129, 0.06)"; // Verde menta translúcido
-                    badgeTexto = "Bajo";
-                    badgeEstilo = "background: #e6f4ea; color: #137333;";
+                    badgeEstilo = "background: #f97316; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(249,115,22,0.2);";
                 }
 
-                               htmlBandaMedia += `
-                <div class="tarjeta-anio-cronologica" data-anio-id="${cursoDetectadoId}" data-anio-nombre="${cursoDetectadoNombre}" data-anio-calendario="${anioCalendarioLoop}" style="background: ${colorFondo} !important; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBorde}; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 185px; width: 240px; box-sizing: border-box; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s;" onmouseenter="this.style.setProperty('background', '${colorFondo}', 'important'); this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.1)';" onmouseleave="this.style.setProperty('background', '${colorFondo}', 'important'); this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
-                    <div>
-                        <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cursoDetectadoNombre} - ${etiquetaOrientacion}">
-                            ${cursoDetectadoNombre} - <span style="font-weight: 500; color: #475569;">${etiquetaOrientacion}</span>
+
+                           htmlBandaMedia += `
+                <div class="tarjeta-anio-cronologica" data-anio-id="${cursoDetectadoId}" data-anio-nombre="${cursoDetectadoNombre}" data-anio-calendario="${anioCalendarioLoop}" style="background: #ffffff !important; border-radius: 8px; border: 1px solid #e2e8f0; padding: 0; display: flex; min-height: 185px; width: 240px; box-sizing: border-box; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)';" onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)';">
+                    
+                    <!-- Barra lateral izquierda indicadora de riesgo focal -->
+                    <div style="width: 6px; background-color: ${colorRiesgoFocal} !important; height: 100%; flex-shrink: 0;"></div>
+                    
+                    <!-- Contenedor del contenido interno de la tarjeta -->
+                    <div style="padding: 14px; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; box-sizing: border-box;">
+                        <div>
+                            <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cursoDetectadoNombre} - ${etiquetaOrientacion}">
+                                ${cursoDetectadoNombre} - <span style="font-weight: 500; color: #475569;">${etiquetaOrientacion}</span>
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Ciclo Lectivo: <b>${anioCalendarioLoop}</b></div>
+                            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #475569;">
+                                <div style="display: flex; justify-content: space-between;"><span>Aprobadas:</span><b style="color: #10b981;">${aprobadas}</b></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Desaprobadas:</span><b style="${desaprobadas > 0 ? 'color: #ef4444;' : ''}">${desaprobadas}</b></div>
+                                <div style="display: flex; justify-content: space-between;"><span>Sin Notas:</span><b style="${sinNotas > 0 ? 'color: #2563eb;' : ''}">${sinNotas}</b></div>
+                                <div style="display: flex; justify-content: space-between; margin-top: 2px; padding-top: 2px; border-top: 1px dashed #f1f5f9;"><span>Promedio:</span><strong style="color: #0f172a;">${promedio}</strong></div>
+                            </div>
                         </div>
-                        <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Ciclo Lectivo: <b>${anioCalendarioLoop}</b></div>
-                        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #475569;">
-                            <div style="display: flex; justify-content: space-between;"><span>Aprobadas:</span><b style="color: #10b981;">${aprobadas}</b></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Desaprobadas:</span><b style="${desaprobadas > 0 ? 'color: #ef4444;' : ''}">${desaprobadas}</b></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Sin Notas:</span><b style="${sinNotas > 0 ? 'color: #2563eb;' : ''}">${sinNotas}</b></div>
-                            <div style="display: flex; justify-content: space-between; margin-top: 2px; padding-top: 2px; border-top: 1px dashed #f1f5f9;"><span>Promedio:</span><strong>${promedio}</strong></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 11px;">
+                            <span style="color: #64748b; font-weight: 500;">Riesgo Temprano:</span>
+                            <span style="${badgeEstilo}">${badgeTexto}</span>
                         </div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 11px;">
-                        <span style="color: #64748b;">Riesgo Temprano:</span>
-                        <span style="padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; ${badgeEstilo}">${badgeTexto}</span>
                     </div>
                 </div>`;
+
 
 
       });
@@ -552,14 +559,22 @@
       listaTarjetasAnios.style.justifyContent = "flex-start";
       listaTarjetasAnios.innerHTML = htmlBandaMedia;
 
-      document.querySelectorAll(".tarjeta-anio-cronologica").forEach((tarjeta) => {
-        tarjeta.addEventListener("click", function () {
-          const anioId = this.getAttribute("data-anio-id");
-          const anioCalendario = this.getAttribute("data-anio-calendario");
-          if (!anioId) return;
+           document.querySelectorAll(".tarjeta-anio-cronologica").forEach((tarjeta) => {
+        tarjeta.addEventListener("click", function (evento) {
+          // Usa currentTarget para asegurar la lectura desde el contenedor padre con los atributos data-
+          const anioId = evento.currentTarget.getAttribute("data-anio-id");
+          const anioCalendario = evento.currentTarget.getAttribute("data-anio-calendario");
+          
+          if (!anioId) {
+            console.warn("[Auditoría HASPEN] Click detectado en tarjeta sin data-anio-id válido.");
+            return;
+          }
+          
+          console.log(`[Auditoría HASPEN] Cargando boletín para Año ID: ${anioId} | Ciclo: ${anioCalendario}`);
           renderizarBoletinInferior(anioId, anioCalendario);
         });
       });
+
     }
 
     // ---------------------------------------------------------------------------------
