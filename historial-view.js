@@ -559,9 +559,10 @@
       listaTarjetasAnios.style.justifyContent = "flex-start";
       listaTarjetasAnios.innerHTML = htmlBandaMedia;
 
-           document.querySelectorAll(".tarjeta-anio-cronologica").forEach((tarjeta) => {
-        tarjeta.addEventListener("click", function (evento) {
-          // Usa currentTarget para asegurar la lectura desde el contenedor padre con los atributos data-
+            // Asignación reactiva de eventos con soporte asincrónico nativo
+      document.querySelectorAll(".tarjeta-anio-cronologica").forEach((tarjeta) => {
+        tarjeta.addEventListener("click", async function (evento) { // ✅ AGREGADO ASYNC ACÁ
+          // Usa currentTarget para asegurar la lectura desde el contenedor padre
           const anioId = evento.currentTarget.getAttribute("data-anio-id");
           const anioCalendario = evento.currentTarget.getAttribute("data-anio-calendario");
           
@@ -571,75 +572,71 @@
           }
           
           console.log(`[Auditoría HASPEN] Cargando boletín para Año ID: ${anioId} | Ciclo: ${anioCalendario}`);
-          renderizarBoletinInferior(anioId, anioCalendario);
+          await renderizarBoletinInferior(anioId, anioCalendario); // ✅ AHORA SÍ ES VÁLIDO
         });
       });
 
+
+
     }
 
+        // ---------------------------------------------------------------------------------
+    // 📋 VISOR DETALLADO: FRANJA HORIZONTAL INFERIOR 3 (BOLETINES POR AÑO DINÁMICOS)
     // ---------------------------------------------------------------------------------
-    // 📋 VISOR DETALLADO: FRANJA HORIZONTAL INFERIOR 3 (BOLETINES POR AÑO)
-    // ---------------------------------------------------------------------------------
-    function renderizarBoletinInferior(anioId, anioCalendario) {
-      visorBoletinContenedor.innerHTML = "";
+    async function renderizarBoletinInferior(anioId, anioCalendario) {
+      visorBoletinContenedor.innerHTML = `<div style="text-align:center; padding: 20px; color: #1a73e8; font-weight: 500; font-family: system-ui;">🔄 Sincronizando mapa de asignaturas oficiales...</div>`;
 
-      // Semillas curriculares idénticas a la configuración institucional (Pilar 5)
-      const semillasCurriculares = {
-        comun: ["PRÁCTICAS DEL LENGUAJE", "MATEMÁTICA", "INGLÉS", "LENGUAJES ARTÍSTICOS", "EDUCACIÓN FÍSICA"],
-        basico: [
-          "HISTORIA",
-          "GEOGRAFÍA",
-          "BIOLOGÍA",
-          "FÍSICO-QUÍMICA",
-          "CONSTRUCCIÓN CIUDADANA",
-          "EDUCACIÓN TECNOLOGICA"
-        ],
-        "Ciencias Sociales": [
-          "HISTORIA ORIENTADA",
-          "GEOGRAFÍA ORIENTADA",
-          "BIOLOGÍA, QUÍMICA Y SOCIEDAD",
-          "SALUD Y DERECHO",
-          "SOCIOLOGÍA",
-          "COMUNICACIÓN",
-          "CIENCIAS POLÍTICAS",
-          "FILOSOFÍA",
-          "PSICOLOGÍA",
-          "FÍSICA ORIENTADA",
-          "ECONOMÍA"
-        ],
-        "Economía y Administración": [
-          "ADMINISTRACIÓN",
-          "SISTEMA INFORMACIÓN CONTABLE",
-          "MICROECONOMÍA",
-          "FILOSOFÍA",
-          "DERECHO ECONÓMICO",
-          "FÍSICA ORIENTADA",
-          "LEGISLACIÓN IMPOSITIVA",
-          "MICROEMPRENDIMIENTO",
-          "ECONOMÍA"
-        ],
-        "Agro y Ambiente": [
-          "CIENCIAS DE LA TIERRA",
-          "AGROECOSISTEMA",
-          "PRODUCCION VEGETAL",
-          "EMPRENDIMIENTO",
-          "PROCESOS PRODUCTIVOS"
-        ]
-      };
+      // Llave unívoca para proteger la cuota de red (Pilar 2 y 3)
+      const CACHE_KEY_CONFIG = "haspen_config_valores_base";
+      let semillasCurriculares = null;
+
+      try {
+        const cacheConfigLocal = localStorage.getItem(CACHE_KEY_CONFIG);
+        if (cacheConfigLocal) {
+          semillasCurriculares = JSON.parse(decodeURIComponent(atob(cacheConfigLocal)));
+        } else {
+          // Cache Miss: Consulta controlada a la red (Módulo de Configuración Unificado)
+          const docRef = doc(db, "configuracion", "valoresBase");
+          const docSnapshot = await getDoc(docRef);
+          
+          if (docSnapshot.exists() && docSnapshot.data().orientaciones) {
+            semillasCurriculares = docSnapshot.data().orientaciones;
+            // Guardado inmediato y ofuscado simétrico local (Pilar 4)
+            localStorage.setItem(CACHE_KEY_CONFIG, btoa(encodeURIComponent(JSON.stringify(semillasCurriculares))));
+          } else {
+            // Contingencia crítica de resguardo institucional si la base de datos está virgen
+            semillasCurriculares = {
+              comun: ["PRÁCTICAS DEL LENGUAJE", "MATEMÁTICA", "INGLÉS", "LENGUAJES ARTÍSTICOS", "EDUCACIÓN FÍSICA"],
+              basico: ["HISTORIA", "GEOGRAFÍA", "BIOLOGÍA", "FÍSICO-QUÍMICA", "CONSTRUCCIÓN CIUDADANA", "EDUCACIÓN TECNOLOGICA"]
+            };
+          }
+        }
+      } catch (errConfig) {
+        console.warn("[Auditoría Módulo] Fallo de lectura en configuración, aplicando fallback seguro:", errConfig);
+        semillasCurriculares = {
+          comun: ["PRÁCTICAS DEL LENGUAJE", "MATEMÁTICA", "INGLÉS", "LENGUAJES ARTÍSTICOS", "EDUCACIÓN FÍSICA"],
+          basico: ["HISTORIA", "GEOGRAFÍA", "BIOLOGÍA", "FÍSICO-QUÍMICA", "CONSTRUCCIÓN CIUDADANA", "EDUCACIÓN TECNOLOGICA"]
+        };
+      }
 
       const esAnioBajo = ["1", "2", "3"].includes(String(anioId));
-      let planEstudioTeorico = [...semillasCurriculares.comun];
+      let planEstudioTeorico = [...(semillasCurriculares.comun || [])];
 
       if (esAnioBajo) {
-        planEstudioTeorico = planEstudioTeorico.concat(semillasCurriculares.basico);
+        planEstudioTeorico = planEstudioTeorico.concat(semillasCurriculares.basico || []);
       } else {
         const orientacionAlumno = alumno.orientacion || "Ciencias Sociales";
         if (semillasCurriculares[orientacionAlumno]) {
-          planEstudioTeorico = planEstudioTeorico.concat(semillasCurriculares[orientacionAlumno]);
+          planEstudioTeorico = planEstudioTeorico.concat(semillasCurriculares[orientacionAlumno] || []);
         }
       }
 
+      // Limpieza del contenedor para dar paso al renderizado de la matriz de notas
+      visorBoletinContenedor.innerHTML = "";
+
       const eventosCiclo = todosLosEventosBici.filter((ev) => {
+
+
         const cLectivo = ev.ciclo_lectivo ? ev.ciclo_lectivo.toString() : "";
         return (
           cLectivo.includes(anioCalendario.toString()) ||
@@ -694,89 +691,100 @@
         );
       });
 
-      // Motor analítico evaluado en memoria sobre el mapa unificado completo
-      let sumC1 = 0,
-        countC1 = 0,
-        aprobadasC1 = 0,
-        evaluadasC1 = 0;
-      let sumC2 = 0,
-        countC2 = 0,
-        aprobadasC2 = 0,
-        evaluadasC2 = 0;
-      let sumFinal = 0,
-        countFinal = 0,
-        aprobadasFinal = 0;
+         // Motor analítico evaluado en memoria sobre el mapa unificado completo
+      let sumC1 = 0, countC1 = 0, aprobadasC1 = 0, desaprobadasC1 = 0;
+      let sumC2 = 0, countC2 = 0, aprobadasC2 = 0, desaprobadasC2 = 0;
+      let sumFinal = 0, countFinal = 0, aprobadasFinal = 0, desaprobadasFinal = 0;
 
       mapaCompletoBoletin.forEach((ev) => {
         const d = ev.datos_duros || {};
 
+        // Análisis 1° Cuatrimestre
         const nC1 = parseFloat(d.c1_nota);
-        if ([d.c1_inf1, d.c1_inf2, d.c1_nota].some((x) => x && x !== "-")) evaluadasC1++;
         if (!isNaN(nC1) && nC1 > 0) {
           sumC1 += nC1;
           countC1++;
           if (nC1 >= 6) aprobadasC1++;
+          else desaprobadasC1++;
         }
 
+        // Análisis 2° Cuatrimestre
         const nC2 = parseFloat(d.c2_nota);
-        if ([d.c2_inf1, d.c2_inf2, d.c2_nota].some((x) => x && x !== "-")) evaluadasC2++;
         if (!isNaN(nC2) && nC2 > 0) {
           sumC2 += nC2;
           countC2++;
           if (nC2 >= 6) aprobadasC2++;
+          else desaprobadasC2++;
         }
 
+        // Análisis Rendimiento Anual
         const nFinal = parseFloat(d.nota_final);
         if (!isNaN(nFinal) && nFinal > 0) {
           sumFinal += nFinal;
           countFinal++;
           if (nFinal >= 6) aprobadasFinal++;
+          else desaprobadasFinal++;
         }
       });
 
+      // Cómputo exacto de promedios ponderados sobre materias evaluadas reales
       const promC1 = countC1 > 0 ? (sumC1 / countC1).toFixed(2) : "0.00";
       const promC2 = countC2 > 0 ? (sumC2 / countC2).toFixed(2) : "0.00";
       const promFinal = countFinal > 0 ? (sumFinal / countFinal).toFixed(2) : "0.00";
 
-      const pctC1 = evaluadasC1 > 0 ? Math.round((aprobadasC1 / planEstudioTeorico.length) * 100) : 0;
-      const pctC2 = evaluadasC2 > 0 ? Math.round((aprobadasC2 / planEstudioTeorico.length) * 100) : 0;
-      const pctFinal = countFinal > 0 ? Math.round((aprobadasFinal / planEstudioTeorico.length) * 100) : 0;
+      // Porcentajes de barra de progreso basados en la carga curricular del plan dinámico (11 o 12 materias)
+      const totalMateriasPlan = planEstudioTeorico.length || 11;
+      const pctC1 = Math.round((aprobadasC1 / totalMateriasPlan) * 100);
+      const pctC2 = Math.round((aprobadasC2 / totalMateriasPlan) * 100);
+      const pctFinal = Math.round((aprobadasFinal / totalMateriasPlan) * 100);
+
+      // Colores institucionales puros para las barras de progreso académico
+      const colorBarraC1 = "#3b82f6"; // Azul 1° Cuatri
+      const colorBarraC2 = "#f59e0b"; // Naranja 2° Cuatri
+      const colorBarraFinal = "#10b981"; // Verde Rendimiento Anual
 
       let htmlEstructura = `
             <div style="width: 100%; display: flex; flex-direction: column; gap: 20px; font-family: system-ui, -apple-system, sans-serif;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    
+                    <!-- Tarjeta 1° Cuatrimestre -->
                     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #3b82f6; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">📈 1° Cuatrimestre</div>
                         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
                             <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC1}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Acreditación:</span><strong>${pctC1}% (${aprobadasC1}/${planEstudioTeorico.length})</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Estado de Aplazos:</span><strong style="color: ${desaprobadasC1 > 0 ? '#ef4444' : '#10b981'};">${desaprobadasC1}/${totalMateriasPlan} Aplazos</strong></div>
                         </div>
                         <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctC1}%; background-color: #3b82f6; height: 100%;"></div>
+                            <div style="width: ${pctC1}%; background-color: ${colorBarraC1}; height: 100%;"></div>
                         </div>
                     </div>
+
+                    <!-- Tarjeta 2° Cuatrimestre -->
                     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #f59e0b; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">📈 2° Cuatrimestre</div>
                         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
                             <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC2}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Acreditación:</span><strong>${pctC2}% (${aprobadasC2}/${planEstudioTeorico.length})</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Estado de Aplazos:</span><strong style="color: ${desaprobadasC2 > 0 ? '#ef4444' : '#b45309'};">${desaprobadasC2}/${totalMateriasPlan} Aplazos</strong></div>
                         </div>
                         <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctC2}%; background-color: #f59e0b; height: 100%;"></div>
+                            <div style="width: ${pctC2}%; background-color: ${colorBarraC2}; height: 100%;"></div>
                         </div>
                     </div>
+
+                    <!-- Tarjeta Rendimiento Anual -->
                     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #10b981; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">🎯 Rendimiento Anual</div>
                         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
                             <div style="display: flex; justify-content: space-between;"><span>Promedio General:</span><strong>${promFinal}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Materias Promocionadas:</span><strong>${pctFinal}% (${aprobadasFinal}/${planEstudioTeorico.length})</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Estado de Aplazos:</span><strong style="color: ${desaprobadasFinal > 0 ? '#ef4444' : '#10b981'};">${desaprobadasFinal}/${totalMateriasPlan} Aplazos</strong></div>
                         </div>
                         <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctFinal}%; background-color: #10b981; height: 100%;"></div>
+                            <div style="width: ${pctFinal}%; background-color: ${colorBarraFinal}; height: 100%;"></div>
                         </div>
                     </div>
                 </div>
                 <div style="width: 100%; overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
+
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace; color: #334155; text-align: center; background: #ffffff; min-width: 800px;">
                         <thead>
                             <tr style="background: #1b4d82; color: #ffffff; text-transform: uppercase; font-size: 11px; height: 32px;">
@@ -797,6 +805,7 @@
                             </tr>
                         </thead>
                         <tbody>`;
+
 
       mapaCompletoBoletin.forEach((ev) => {
         const dExtra = ev.datos_duros || {};
