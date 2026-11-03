@@ -691,10 +691,10 @@
         );
       });
 
-         // Motor analítico evaluado en memoria sobre el mapa unificado completo
-      let sumC1 = 0, countC1 = 0, aprobadasC1 = 0, desaprobadasC1 = 0;
-      let sumC2 = 0, countC2 = 0, aprobadasC2 = 0, desaprobadasC2 = 0;
-      let sumFinal = 0, countFinal = 0, aprobadasFinal = 0, desaprobadasFinal = 0;
+       // Motor analítico evaluado en memoria sobre el mapa unificado completo
+      let sumC1 = 0, countC1 = 0, aprobadasC1 = 0, desaprobadasC1 = 0, sinNotasC1 = 0;
+      let sumC2 = 0, countC2 = 0, aprobadasC2 = 0, desaprobadasC2 = 0, sinNotasC2 = 0;
+      let sumFinal = 0, countFinal = 0, aprobadasFinal = 0, desaprobadasFinal = 0, sinNotasFinal = 0;
 
       mapaCompletoBoletin.forEach((ev) => {
         const d = ev.datos_duros || {};
@@ -706,6 +706,8 @@
           countC1++;
           if (nC1 >= 6) aprobadasC1++;
           else desaprobadasC1++;
+        } else {
+          sinNotasC1++;
         }
 
         // Análisis 2° Cuatrimestre
@@ -715,6 +717,8 @@
           countC2++;
           if (nC2 >= 6) aprobadasC2++;
           else desaprobadasC2++;
+        } else {
+          sinNotasC2++;
         }
 
         // Análisis Rendimiento Anual
@@ -724,62 +728,98 @@
           countFinal++;
           if (nFinal >= 6) aprobadasFinal++;
           else desaprobadasFinal++;
+        } else {
+          sinNotasFinal++;
         }
       });
 
-      // Cómputo exacto de promedios ponderados sobre materias evaluadas reales
+      // Cómputo exacto de promedios ponderados reales (Aduana de Memoria Nativa)
       const promC1 = countC1 > 0 ? (sumC1 / countC1).toFixed(2) : "0.00";
       const promC2 = countC2 > 0 ? (sumC2 / countC2).toFixed(2) : "0.00";
       const promFinal = countFinal > 0 ? (sumFinal / countFinal).toFixed(2) : "0.00";
 
-      // Porcentajes de barra de progreso basados en la carga curricular del plan dinámico (11 o 12 materias)
       const totalMateriasPlan = planEstudioTeorico.length || 11;
+      
+      // Porcentajes de avance real basados únicamente en lo efectivamente aprobado del plan curricular
       const pctC1 = Math.round((aprobadasC1 / totalMateriasPlan) * 100);
       const pctC2 = Math.round((aprobadasC2 / totalMateriasPlan) * 100);
       const pctFinal = Math.round((aprobadasFinal / totalMateriasPlan) * 100);
 
-      // Colores institucionales puros para las barras de progreso académico
-      const colorBarraC1 = "#3b82f6"; // Azul 1° Cuatri
-      const colorBarraC2 = "#f59e0b"; // Naranja 2° Cuatri
-      const colorBarraFinal = "#10b981"; // Verde Rendimiento Anual
+      // --- ESCALA NEOMÓRFICA DE RIESGO INSTITUCIONAL (BARRAS Y CONTADORES) ---
+      
+      // Período 1
+      let colorBarraC1 = "#10b981"; 
+      let textoDetalleC1 = `${desaprobadasC1} Aplazos | Ciclo Completo`;
+      if (desaprobadasC1 > 4 || sinNotasC1 > 4) {
+        colorBarraC1 = "#ef4444"; 
+      } else if ((desaprobadasC1 > 0 && desaprobadasC1 <= 4) || (sinNotasC1 > 0 && sinNotasC1 <= 4)) {
+        colorBarraC1 = "#f97316"; 
+      }
+      if (sinNotasC1 > 0) {
+        textoDetalleC1 = `${desaprobadasC1} Aplazos | ${sinNotasC1} Asig. Sin Notas`;
+      }
+
+      // Período 2
+      let colorBarraC2 = "#10b981";
+      let textoDetalleC2 = `${desaprobadasC2} Aplazos | Ciclo Completo`;
+      if (desaprobadasC2 > 4 || sinNotasC2 > 4) {
+        colorBarraC2 = "#ef4444";
+      } else if ((desaprobadasC2 > 0 && desaprobadasC2 <= 4) || (sinNotasC2 > 0 && sinNotasC2 <= 4)) {
+        colorBarraC2 = "#f97316";
+      }
+      if (sinNotasC2 > 0) {
+        textoDetalleC2 = `${desaprobadasC2} Aplazos | ${sinNotasC2} Asig. Sin Notas`;
+      }
+
+      // Período Anual / Final
+      let colorBarraFinal = "#10b981";
+      let textoDetalleFinal = `${desaprobadasFinal} Aplazos | Ciclo Completo`;
+      if (desaprobadasFinal > 4 || sinNotasFinal > 4) {
+        colorBarraFinal = "#ef4444";
+      } else if ((desaprobadasFinal > 0 && desaprobadasFinal <= 4) || (sinNotasFinal > 0 && sinNotasFinal <= 4)) {
+        colorBarraFinal = "#f97316";
+      }
+      if (sinNotasFinal > 0) {
+        textoDetalleFinal = `${desaprobadasFinal} Aplazos | ${sinNotasFinal} Asig. Sin Notas`;
+      }
 
       let htmlEstructura = `
             <div style="width: 100%; display: flex; flex-direction: column; gap: 20px; font-family: system-ui, -apple-system, sans-serif;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
                     
                     <!-- Tarjeta 1° Cuatrimestre -->
-                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #3b82f6; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBarraC1}; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">📈 1° Cuatrimestre</div>
                         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
                             <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC1}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Estado de Aplazos:</span><strong style="color: ${desaprobadasC1 > 0 ? '#ef4444' : '#10b981'};">${desaprobadasC1}/${totalMateriasPlan} Aplazos</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Estado de Carga:</span><strong style="color: ${colorBarraC1};">${textoDetalleC1}</strong></div>
                         </div>
                         <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctC1}%; background-color: ${colorBarraC1}; height: 100%;"></div>
+                            <div style="width: ${pctC1}%; background-color: ${colorBarraC1}; height: 100%; transition: width 0.4s ease, background-color 0.4s ease;"></div>
                         </div>
                     </div>
 
                     <!-- Tarjeta 2° Cuatrimestre -->
-                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #f59e0b; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBarraC2}; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">📈 2° Cuatrimestre</div>
                         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
                             <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC2}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Estado de Aplazos:</span><strong style="color: ${desaprobadasC2 > 0 ? '#ef4444' : '#b45309'};">${desaprobadasC2}/${totalMateriasPlan} Aplazos</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Estado de Carga:</span><strong style="color: ${colorBarraC2};">${textoDetalleC2}</strong></div>
                         </div>
                         <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctC2}%; background-color: ${colorBarraC2}; height: 100%;"></div>
+                            <div style="width: ${pctC2}%; background-color: ${colorBarraC2}; height: 100%; transition: width 0.4s ease, background-color 0.4s ease;"></div>
                         </div>
                     </div>
 
                     <!-- Tarjeta Rendimiento Anual -->
-                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid #10b981; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBarraFinal}; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">🎯 Rendimiento Anual</div>
                         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
                             <div style="display: flex; justify-content: space-between;"><span>Promedio General:</span><strong>${promFinal}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Estado de Aplazos:</span><strong style="color: ${desaprobadasFinal > 0 ? '#ef4444' : '#10b981'};">${desaprobadasFinal}/${totalMateriasPlan} Aplazos</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Estado de Carga:</span><strong style="color: ${colorBarraFinal};">${textoDetalleFinal}</strong></div>
                         </div>
                         <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctFinal}%; background-color: ${colorBarraFinal}; height: 100%;"></div>
+                            <div style="width: ${pctFinal}%; background-color: ${colorBarraFinal}; height: 100%; transition: width 0.4s ease, background-color 0.4s ease;"></div>
                         </div>
                     </div>
                 </div>
@@ -804,10 +844,9 @@
                                 <th style="border: 1px solid #cbd5e1; background: #fef3c7; color: #b45309; width: 8%;">2° CUATRI</th>
                             </tr>
                         </thead>
-                        <tbody>`;
 
-
-      mapaCompletoBoletin.forEach((ev) => {
+                        <tbody>
+      ${mapaCompletoBoletin.map((ev) => {
         const dExtra = ev.datos_duros || {};
         const materiaStr = dExtra.materia || ev.descripcion || "Materia General";
 
@@ -823,19 +862,19 @@
 
         const finalNota = dExtra.nota_final && dExtra.nota_final !== "0" ? dExtra.nota_final : "-";
 
-        // Función utilitaria interna para estilizar condicionalmente celdas en riesgo (Pilar 5)
-        const obtenerEstiloCelda = (notaValor, esColumnaCierre = false) => {
-          const n = parseFloat(notaValor);
-          if (!isNaN(n) && n > 0 && n < 6) {
-            return "border: 1px solid #cbd5e1; font-weight: bold; color: #b91c1c; background-color: #fef2f2;";
-          }
-          if (esColumnaCierre) {
-            return "border: 1px solid #cbd5e1; font-weight: bold;";
-          }
-          return "border: 1px solid #cbd5e1; color: #475569;";
-        };
+        // Aislamiento completo de estilos para blindaje de sintaxis (Pilar 5)
+        const estNormal = "border: 1px solid #cbd5e1; color: #475569;";
+        const estAplazo = "border: 1px solid #cbd5e1; font-weight: bold; color: #b91c1c; background-color: #fef2f2;";
+        
+        const nC1_num = parseFloat(notaC1);
+        const estColumnaC1 = (!isNaN(nC1_num) && nC1_num > 0 && nC1_num < 6) ? estAplazo : "border: 1px solid #cbd5e1; font-weight: bold; background: #f0f9ff; color: #0369a1; font-size: 13px;";
 
-        // Análisis reactivo de fila completa para detectar aplazos vigentes
+        const nC2_num = parseFloat(notaC2);
+        const estColumnaC2 = (!isNaN(nC2_num) && nC2_num > 0 && nC2_num < 6) ? estAplazo : "border: 1px solid #cbd5e1; font-weight: bold; background: #fffbeb; color: #b45309; font-size: 13px;";
+
+        const nFn_num = parseFloat(finalNota);
+        const estColumnaFn = (!isNaN(nFn_num) && nFn_num > 0 && nFn_num < 6) ? estAplazo : "border: 1px solid #cbd5e1; font-weight: bold; background: #f1f5f9; color: #0f172a; font-size: 13px;";
+
         const subPeriodos = [inf1_1, inf1_2, notaC1, inf2_1, inf2_2, notaC2, finalNota];
         const tieneAplazoVigente = subPeriodos.some((nota) => {
           const nNum = parseFloat(nota);
@@ -843,22 +882,21 @@
         });
 
         const estiloFila = tieneAplazoVigente ? "background-color: #fafafa;" : "background-color: #ffffff;";
-        htmlEstructura += `
+
+        return `
                 <tr style="${estiloFila} border-bottom: 1px solid #e2e8f0; height: 32px;">
                     <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: left; font-weight: bold; color: #1e293b; text-transform: uppercase;">${materiaStr}</td>
-                    <td style="${obtenerEstiloCelda(inf1_1)}">${inf1_1}</td>
-                    <td style="${obtenerEstiloCelda(inf1_2)}">${inf1_2}</td>
-                    <td style="${obtenerEstiloCelda(forta1)}">${forta1}</td>
-                    <td style="${obtenerEstiloCelda(notaC1, true)} background: #f0f9ff; color: ${parseFloat(notaC1) < 6 ? "#b91c1c" : "#0369a1"}; font-size: 13px;">${notaC1}</td>
-                    <td style="${obtenerEstiloCelda(inf2_1)}">${inf2_1}</td>
-                    <td style="${obtenerEstiloCelda(inf2_2)}">${inf2_2}</td>
-                    <td style="${obtenerEstiloCelda(forta2)}">${forta2}</td>
-                    <td style="${obtenerEstiloCelda(notaC2, true)} background: #fffbeb; color: ${parseFloat(notaC2) < 6 ? "#b91c1c" : "#b45309"}; font-size: 13px;">${notaC2}</td>
-                    <td style="${obtenerEstiloCelda(finalNota, true)} background: #f1f5f9; color: ${parseFloat(finalNota) < 6 ? "#b91c1c" : "#0f172a"}; font-size: 13px;">${finalNota}</td>
+                    <td style="${(parseFloat(inf1_1) < 6) ? estAplazo : estNormal}">${inf1_1}</td>
+                    <td style="${(parseFloat(inf1_2) < 6) ? estAplazo : estNormal}">${inf1_2}</td>
+                    <td style="${(parseFloat(forta1) < 6) ? estAplazo : estNormal}">${forta1}</td>
+                    <td style="${estColumnaC1}">${notaC1}</td>
+                    <td style="${(parseFloat(inf2_1) < 6) ? estAplazo : estNormal}">${inf2_1}</td>
+                    <td style="${(parseFloat(inf2_2) < 6) ? estAplazo : estNormal}">${inf2_2}</td>
+                    <td style="${(parseFloat(forta2) < 6) ? estAplazo : estNormal}">${forta2}</td>
+                    <td style="${estColumnaC2}">${notaC2}</td>
+                    <td style="${estColumnaFn}">${finalNota}</td>
                 </tr>`;
-      });
-
-      htmlEstructura += `
+      }).join("")}
                         </tbody>
                     </table>
                 </div>
@@ -866,6 +904,7 @@
 
       visorBoletinContenedor.innerHTML = htmlEstructura;
     }
+
 
     // Renderizado automático inicial de la franja media de tarjetas al cargar la pantalla
     dibujarTarjetasTrayectoria();
