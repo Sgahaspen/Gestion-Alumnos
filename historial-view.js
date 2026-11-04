@@ -691,15 +691,27 @@
         );
       });
 
-       // Motor analítico evaluado en memoria sobre el mapa unificado completo
+         // Motor analítico evaluado en memoria sobre el mapa unificado completo
       let sumC1 = 0, countC1 = 0, aprobadasC1 = 0, desaprobadasC1 = 0, sinNotasC1 = 0;
       let sumC2 = 0, countC2 = 0, aprobadasC2 = 0, desaprobadasC2 = 0, sinNotasC2 = 0;
       let sumFinal = 0, countFinal = 0, aprobadasFinal = 0, desaprobadasFinal = 0, sinNotasFinal = 0;
+      let aprobadasVirtualesContadorAnual = 0;
+
+      const totalMateriasPlan = planEstudioTeorico.length || 11;
+
+      // Escáner preliminar de red/memoria para detectar si el ciclo ya inició alguna carga real de notas finales
+      const cicloTieneEvidenciaFinalReal = mapaCompletoBoletin.some((ev) => {
+        const d = ev.datos_duros || {};
+        const nFinal = parseFloat(d.nota_final);
+        return !isNaN(nFinal) && nFinal > 0;
+      });
 
       mapaCompletoBoletin.forEach((ev) => {
         const d = ev.datos_duros || {};
 
-        // Análisis 1° Cuatrimestre
+        // -----------------------------------------------------------------------------
+        // Análisis 1° Cuatrimestre (Sin nota = Aplazo Virtual 1.0)
+        // -----------------------------------------------------------------------------
         const nC1 = parseFloat(d.c1_nota);
         if (!isNaN(nC1) && nC1 > 0) {
           sumC1 += nC1;
@@ -708,9 +720,14 @@
           else desaprobadasC1++;
         } else {
           sinNotasC1++;
+          desaprobadasC1++; 
+          sumC1 += 1.0; 
+          countC1++;
         }
 
-        // Análisis 2° Cuatrimestre
+        // -----------------------------------------------------------------------------
+        // Análisis 2° Cuatrimestre (Sin nota = Aplazo Virtual 1.0)
+        // -----------------------------------------------------------------------------
         const nC2 = parseFloat(d.c2_nota);
         if (!isNaN(nC2) && nC2 > 0) {
           sumC2 += nC2;
@@ -719,9 +736,14 @@
           else desaprobadasC2++;
         } else {
           sinNotasC2++;
+          desaprobadasC2++; 
+          sumC2 += 1.0; 
+          countC2++;
         }
 
-        // Análisis Rendimiento Anual
+        // -----------------------------------------------------------------------------
+        // Análisis Rendimiento Anual (Salva de Aprobación Virtual Inteligente de 6.0)
+        // -----------------------------------------------------------------------------
         const nFinal = parseFloat(d.nota_final);
         if (!isNaN(nFinal) && nFinal > 0) {
           sumFinal += nFinal;
@@ -729,7 +751,18 @@
           if (nFinal >= 6) aprobadasFinal++;
           else desaprobadasFinal++;
         } else {
-          sinNotasFinal++;
+          if (cicloTieneEvidenciaFinalReal) {
+            const notaVirtual = 6.0;
+            sumFinal += notaVirtual;
+            countFinal++;
+            aprobadasFinal++; 
+            aprobadasVirtualesContadorAnual++; 
+          } else {
+            sinNotasFinal++;
+            desaprobadasFinal++; 
+            sumFinal += 1.0; 
+            countFinal++;
+          }
         }
       });
 
@@ -737,51 +770,60 @@
       const promC1 = countC1 > 0 ? (sumC1 / countC1).toFixed(2) : "0.00";
       const promC2 = countC2 > 0 ? (sumC2 / countC2).toFixed(2) : "0.00";
       const promFinal = countFinal > 0 ? (sumFinal / countFinal).toFixed(2) : "0.00";
-
-      const totalMateriasPlan = planEstudioTeorico.length || 11;
       
       // Porcentajes de avance real basados únicamente en lo efectivamente aprobado del plan curricular
       const pctC1 = Math.round((aprobadasC1 / totalMateriasPlan) * 100);
       const pctC2 = Math.round((aprobadasC2 / totalMateriasPlan) * 100);
       const pctFinal = Math.round((aprobadasFinal / totalMateriasPlan) * 100);
 
-      // --- ESCALA NEOMÓRFICA DE RIESGO INSTITUCIONAL (BARRAS Y CONTADORES) ---
+      // --- ESCALA NEOMÓRFICA DE RIESGO INSTITUCIONAL (BARRAS Y CONTADORES CALIBRADOS) ---
       
       // Período 1
       let colorBarraC1 = "#10b981"; 
-      let textoDetalleC1 = `${desaprobadasC1} Aplazos | Ciclo Completo`;
-      if (desaprobadasC1 > 4 || sinNotasC1 > 4) {
+      const aplazosRealesC1 = desaprobadasC1 - sinNotasC1;
+      if (desaprobadasC1 > 4) {
         colorBarraC1 = "#ef4444"; 
-      } else if ((desaprobadasC1 > 0 && desaprobadasC1 <= 4) || (sinNotasC1 > 0 && sinNotasC1 <= 4)) {
+      } else if (desaprobadasC1 > 0 && desaprobadasC1 <= 4) {
         colorBarraC1 = "#f97316"; 
       }
-      if (sinNotasC1 > 0) {
-        textoDetalleC1 = `${desaprobadasC1} Aplazos | ${sinNotasC1} Asig. Sin Notas`;
-      }
+      let textoDetalleC1 = `${aplazosRealesC1} Aplazos Reales | ${sinNotasC1} Pendientes de Carga`;
 
       // Período 2
       let colorBarraC2 = "#10b981";
-      let textoDetalleC2 = `${desaprobadasC2} Aplazos | Ciclo Completo`;
-      if (desaprobadasC2 > 4 || sinNotasC2 > 4) {
+      const aplazosRealesC2 = desaprobadasC2 - sinNotasC2;
+      if (desaprobadasC2 > 4) {
         colorBarraC2 = "#ef4444";
-      } else if ((desaprobadasC2 > 0 && desaprobadasC2 <= 4) || (sinNotasC2 > 0 && sinNotasC2 <= 4)) {
+      } else if (desaprobadasC2 > 0 && desaprobadasC2 <= 4) {
         colorBarraC2 = "#f97316";
       }
-      if (sinNotasC2 > 0) {
-        textoDetalleC2 = `${desaprobadasC2} Aplazos | ${sinNotasC2} Asig. Sin Notas`;
-      }
+      let textoDetalleC2 = `${aplazosRealesC2} Aplazos Reales | ${sinNotasC2} Pendientes de Carga`;
 
       // Período Anual / Final
       let colorBarraFinal = "#10b981";
-      let textoDetalleFinal = `${desaprobadasFinal} Aplazos | Ciclo Completo`;
-      if (desaprobadasFinal > 4 || sinNotasFinal > 4) {
+      let textoDetalleFinal = "";
+      let aplazosRealesFinal = 0;
+      
+      mapaCompletoBoletin.forEach((ev) => {
+        const d = ev.datos_duros || {};
+        const nFinal = parseFloat(d.nota_final);
+        if (!isNaN(nFinal) && nFinal > 0 && nFinal < 6) {
+          aplazosRealesFinal++;
+        }
+      });
+
+      if (aplazosRealesFinal > 4 || (!cicloTieneEvidenciaFinalReal && desaprobadasFinal > 4)) {
         colorBarraFinal = "#ef4444";
-      } else if ((desaprobadasFinal > 0 && desaprobadasFinal <= 4) || (sinNotasFinal > 0 && sinNotasFinal <= 4)) {
+      } else if (aplazosRealesFinal > 0 || (!cicloTieneEvidenciaFinalReal && desaprobadasFinal > 0)) {
         colorBarraFinal = "#f97316";
       }
-      if (sinNotasFinal > 0) {
-        textoDetalleFinal = `${desaprobadasFinal} Aplazos | ${sinNotasFinal} Asig. Sin Notas`;
+
+      if (cicloTieneEvidenciaFinalReal) {
+        textoDetalleFinal = `${aplazosRealesFinal} Aplazos Reales | ${aprobadasVirtualesContadorAnual} Aprobadas Virtuales (Pendientes)`;
+      } else {
+        textoDetalleFinal = `0 Aplazos Reales | ${sinNotasFinal} Materias sin Carga Inicial`;
       }
+
+
 
       let htmlEstructura = `
             <div style="width: 100%; display: flex; flex-direction: column; gap: 20px; font-family: system-ui, -apple-system, sans-serif;">
