@@ -396,7 +396,7 @@
                     </div>`;
           return; // Saltar al siguiente año
         }
-        // --- ESCENARIO B: EL AÑO TIENE EVIDENCIA (REGULAR / REPITENTE) ---
+             // --- ESCENARIO B: EL AÑO TIENE EVIDENCIA (REGULAR / REPITENTE) ---
         let cursoDetectadoId = "1";
         let cursoDetectadoNombre = "1° Año";
 
@@ -405,130 +405,113 @@
           const dDuros = primerRegistro.datos_duros || {};
           const idCursoDuro = dDuros.curso ? String(dDuros.curso) : "";
 
-          if (idCursoDuro.includes("2")) {
-            cursoDetectadoId = "2";
-            cursoDetectadoNombre = "2° Año";
-          } else if (idCursoDuro.includes("3")) {
-            cursoDetectadoId = "3";
-            cursoDetectadoNombre = "3° Año";
-          } else if (idCursoDuro.includes("4")) {
-            cursoDetectadoId = "4";
-            cursoDetectadoNombre = "4° Año";
-          } else if (idCursoDuro.includes("5")) {
-            cursoDetectadoId = "5";
-            cursoDetectadoNombre = "5° Año";
-          } else if (idCursoDuro.includes("6")) {
-            cursoDetectadoId = "6";
-            cursoDetectadoNombre = "6° Año";
-          }
+          if (idCursoDuro.includes("2")) { cursoDetectadoId = "2"; cursoDetectadoNombre = "2° Año"; }
+          else if (idCursoDuro.includes("3")) { cursoDetectadoId = "3"; cursoDetectadoNombre = "3° Año"; }
+          else if (idCursoDuro.includes("4")) { cursoDetectadoId = "4"; cursoDetectadoNombre = "4° Año"; }
+          else if (idCursoDuro.includes("5")) { cursoDetectadoId = "5"; cursoDetectadoNombre = "5° Año"; }
+          else if (idCursoDuro.includes("6")) { cursoDetectadoId = "6"; cursoDetectadoNombre = "6° Año"; }
         } else if (anioCalendarioLoop === anioActualSistema) {
           const textoCurso = (alumno.cursoTextoMapeado || "").toLowerCase();
-          if (textoCurso.includes("2°")) {
-            cursoDetectadoId = "2";
-            cursoDetectadoNombre = "2° Año";
-          } else if (textoCurso.includes("3°")) {
-            cursoDetectadoId = "3";
-            cursoDetectadoNombre = "3° Año";
-          } else if (textoCurso.includes("4°")) {
-            cursoDetectadoId = "4";
-            cursoDetectadoNombre = "4° Año";
-          } else if (textoCurso.includes("5°")) {
-            cursoDetectadoId = "5";
-            cursoDetectadoNombre = "5° Año";
-          } else if (textoCurso.includes("6°")) {
-            cursoDetectadoId = "6";
-            cursoDetectadoNombre = "6° Año";
-          }
+          if (textoCurso.includes("2°")) { cursoDetectadoId = "2"; cursoDetectadoNombre = "2° Año"; }
+          else if (textoCurso.includes("3°")) { cursoDetectadoId = "3"; cursoDetectadoNombre = "3° Año"; }
+          else if (textoCurso.includes("4°")) { cursoDetectadoId = "4"; cursoDetectadoNombre = "4° Año"; }
+          else if (textoCurso.includes("5°")) { cursoDetectadoId = "5"; cursoDetectadoNombre = "5° Año"; }
+          else if (textoCurso.includes("6°")) { cursoDetectadoId = "6"; cursoDetectadoNombre = "6° Año"; }
         }
 
         const esAnioBajo = ["1", "2", "3"].includes(cursoDetectadoId);
         const totalMateriasTeoricas = esAnioBajo ? 11 : 12;
         let etiquetaOrientacion = esAnioBajo ? "Básico" : alumno.orientacion || "Orientado";
 
-              // 1. Escáner Forense: Verificar si ya existe algún cierre de ciclo anual en el lote (Pilar 5)
+        // Recuperar dinámicamente o aplicar fallback de materias del plan de estudios local
+        let materiasPlanTarjeta = ["PRÁCTICAS DEL LENGUAJE", "MATEMÁTICA", "INGLÉS", "LENGUAJES ARTÍSTICOS", "EDUCACIÓN FÍSICA"];
+        if (esAnioBajo) {
+          materiasPlanTarjeta = materiasPlanTarjeta.concat(["HISTORIA", "GEOGRAFÍA", "BIOLOGÍA", "FÍSICO-QUÍMICA", "CONSTRUCCIÓN CIUDADANA", "EDUCACIÓN TECNOLOGICA"]);
+        } else {
+          const orientacionAlumno = alumno.orientacion || "Ciencias Sociales";
+          try {
+            const cacheConfigLocal = localStorage.getItem("haspen_config_valores_base");
+            if (cacheConfigLocal) {
+              const config = JSON.parse(decodeURIComponent(atob(cacheConfigLocal)));
+              if (config[orientacionAlumno]) materiasPlanTarjeta = materiasPlanTarjeta.concat(config[orientacionAlumno]);
+            }
+          } catch(e) { console.warn(e); }
+        }
+
+        // 1. Escáner Forense: Verificar si ya existe algún cierre de ciclo anual en el lote
         const yaTieneAlgunCierreAnual = registrosNotas.some((ev) => {
           const dDuros = ev.datos_duros || {};
           const nFinalRaw = parseFloat(String(dDuros.nota_final).trim());
           return !isNaN(nFinalRaw) && nFinalRaw > 0;
         });
 
-        // 2. Mapeo adaptativo con cascada regresiva y salvaguarda condicional de aprobación virtual
-        let poolNotas = registrosNotas
-          .map((ev) => {
-            const dDuros = ev.datos_duros || {};
+        // 2. Mapeo analítico unificado basado en la matriz curricular idéntica a la franja inferior
+        let sumC1 = 0, countC1 = 0, desaprobadasC1 = 0, sinNotasC1 = 0;
+        let sumC2 = 0, countC2 = 0, desaprobadasC2 = 0, sinNotasC2 = 0;
+        let sumFinal = 0, countFinal = 0, desaprobadasFinal = 0, sinNotasFinal = 0;
 
-            const nFinal = parseFloat(String(dDuros.nota_final || dDuros.notaFinal).trim());
-            const nC2 = parseFloat(String(dDuros.c2_nota || dDuros.notaCuatrimestre2).trim());
-            const nC2_inf1 = parseFloat(String(dDuros.c2_inf1).trim());
-            const nC1 = parseFloat(String(dDuros.c1_nota || dDuros.notaCuatrimestre1).trim());
-            const nC1_inf1 = parseFloat(String(dDuros.c1_inf1).trim());
-            
-            // Escalonamiento regresivo estricto con salvaguarda de cierre condicional por lote
-            if (!isNaN(nFinal) && nFinal > 0) return nFinal;
-            if (!isNaN(nC2) && nC2 > 0) return nC2;
-            if (!isNaN(nC2_inf1) && nC2_inf1 > 0) return nC2_inf1;
-            if (!isNaN(nC1) && nC1 > 0) return nC1;
-            if (!isNaN(nC1_inf1) && nC1_inf1 > 0) return nC1_inf1;
+        const limpiarCadenaLocal = (str) => {
+          return String(str || "").trim().toUpperCase().replace(/MATERIA\s*:\s*/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        };
 
-            // PARCHE DE SEGURIDAD: Si no hay notas numéricas cargadas (todos dieron NaN),
-            // pero el sistema registra el movimiento o estamos en periodo de cierres,
-            // aplicamos la regla de negocio del 6.0 virtual para no romper el promedio.
-            if (yaTieneAlgunCierreAnual || anioCalendarioLoop <= (parseInt(alumno.cicloLectivo) || 2026)) {
-              return 6.0;
-            }
-
-            return null; // Si la materia está virgen de notas en un año futuro o externo, no aporta al pool
-          })
-          .filter((n) => n !== null);
-
-        let promedio =
-          poolNotas.length > 0 ? (poolNotas.reduce((a, b) => a + b, 0) / poolNotas.length).toFixed(2) : "0.00";
-
-        let desaprobadas = 0;
-        let materiasConEvidenciaDura = [];
-
-
-        registrosNotas.forEach((ev) => {
-          const d = ev.datos_duros || {};
-          const nombreMat = (d.materia || "").trim().toUpperCase();
-          if (nombreMat && !materiasConEvidenciaDura.includes(nombreMat)) {
-            materiasConEvidenciaDura.push(nombreMat);
-          }
-          const subPeriodos = [d.c1_inf1, d.c1_inf2, d.c1_nota, d.c2_inf1, d.c2_inf2, d.c2_nota, d.nota_final];
-          const tieneAplazoReactivo = subPeriodos.some((nota) => {
-            const valorNumerico = parseFloat(nota);
-            return !isNaN(valorNumerico) && valorNumerico > 0 && valorNumerico < 6;
+        const mapaCompletoBoletinTarjeta = materiasPlanTarjeta.map((materiaNombre) => {
+          const nombreTeoricoLimpio = limpiarCadenaLocal(materiaNombre);
+          const coincidenciaReal = registrosNotas.find((reg) => {
+            const dDuros = reg.datos_duros || {};
+            const campoMateria = dDuros.materia || reg.descripcion || "";
+            return limpiarCadenaLocal(campoMateria).includes(nombreTeoricoLimpio) || nombreTeoricoLimpio.includes(limpiarCadenaLocal(campoMateria));
           });
-          if (tieneAplazoReactivo) desaprobadas++;
+          return coincidenciaReal || { datos_duros: { c1_nota: "-", c2_nota: "-", nota_final: "-" } };
         });
 
-        let aprobadas = Math.max(0, materiasConEvidenciaDura.length - desaprobadas);
-        let sinNotas = Math.max(0, totalMateriasTeoricas - materiasConEvidenciaDura.length);
+        const cicloTieneEvidenciaFinalReal = mapaCompletoBoletinTarjeta.some((ev) => {
+          const d = ev.datos_duros || {};
+          const nFinal = parseFloat(d.nota_final);
+          return !isNaN(nFinal) && nFinal > 0;
+        });
+
+        mapaCompletoBoletinTarjeta.forEach((ev) => {
+          const d = ev.datos_duros || {};
+          const nC1 = parseFloat(d.c1_nota);
+          if (!isNaN(nC1) && nC1 > 0) { sumC1 += nC1; countC1++; if (nC1 < 6) desaprobadasC1++; } else { sinNotasC1++; }
+
+          const nC2 = parseFloat(d.c2_nota);
+          if (!isNaN(nC2) && nC2 > 0) { sumC2 += nC2; countC2++; if (nC2 < 6) desaprobadasC2++; } else { sinNotasC2++; }
+
+          const nFinal = parseFloat(d.nota_final);
+          if (!isNaN(nFinal) && nFinal > 0) {
+            sumFinal += nFinal; countFinal++; if (nFinal < 6) desaprobadasFinal++;
+          } else {
+            if (cicloTieneEvidenciaFinalReal || yaTieneAlgunCierreAnual) {
+              sumFinal += 6.0; countFinal++;
+            } else {
+              sinNotasFinal++;
+            }
+          }
+        });
+
+        const promedio = countFinal > 0 ? (sumFinal / countFinal).toFixed(2) : "0.00";
+        let desaprobadas = desaprobadasFinal;
+        let sinNotas = sinNotasFinal;
+        let aprobadas = Math.max(0, totalMateriasTeoricas - desaprobadas - sinNotas);
         const cargaAcademicaTotalAdeudada = desaprobadas + materiasPreviasAlumno;
 
-                         // Regla de Negocio 4: Escala Neomórfica de Riesgo Institucional - Colores Sólidos Puros (HASPEN)
-                let colorRiesgoFocal = "#10b981"; // Verde Vivo ("Regular Activo")
-                let badgeTexto = "Bajo";
-                let badgeEstilo = "background: #10b981; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(16,185,129,0.2);";
+        // Regla de Negocio 4: Escala de Riesgo con Colores Sólidos Puros calibrada por aplazos reales
+        let colorRiesgoFocal = "#10b981";
+        let badgeTexto = "Bajo";
+        let badgeEstilo = "background: #10b981; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(16,185,129,0.2);";
 
-                if (desaprobadas > 6) {
-                    colorRiesgoFocal = "#ef4444"; // Rojo Alerta Sólido
-                    badgeTexto = "Alto";
-                    badgeEstilo = "background: #ef4444; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(239,68,68,0.2);";
-                } else if (desaprobadas === 5 || desaprobadas === 6) {
-                    colorRiesgoFocal = "#f97316"; // Naranja Alerta Sólido
-                    badgeTexto = "Medio";
-                    badgeEstilo = "background: #f97316; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(249,115,22,0.2);";
-                }
+        if (desaprobadas > 6) {
+            colorRiesgoFocal = "#ef4444"; badgeTexto = "Alto";
+            badgeEstilo = "background: #ef4444; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(239,68,68,0.2);";
+        } else if (desaprobadas === 5 || desaprobadas === 6) {
+            colorRiesgoFocal = "#f97316"; badgeTexto = "Medio";
+            badgeEstilo = "background: #f97316; color: #ffffff; font-weight: 800; padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(249,115,22,0.2);";
+        }
 
-
-                           htmlBandaMedia += `
+              htmlBandaMedia += `
                 <div class="tarjeta-anio-cronologica" data-anio-id="${cursoDetectadoId}" data-anio-nombre="${cursoDetectadoNombre}" data-anio-calendario="${anioCalendarioLoop}" style="background: #ffffff !important; border-radius: 8px; border: 1px solid #e2e8f0; padding: 0; display: flex; min-height: 185px; width: 240px; box-sizing: border-box; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)';" onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)';">
-                    
-                    <!-- Barra lateral izquierda indicadora de riesgo focal -->
                     <div style="width: 6px; background-color: ${colorRiesgoFocal} !important; height: 100%; flex-shrink: 0;"></div>
-                    
-                    <!-- Contenedor del contenido interno de la tarjeta -->
                     <div style="padding: 14px; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; box-sizing: border-box;">
                         <div>
                             <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cursoDetectadoNombre} - ${etiquetaOrientacion}">
@@ -548,9 +531,6 @@
                         </div>
                     </div>
                 </div>`;
-
-
-
       });
 
       listaTarjetasAnios.style.display = "flex";
@@ -559,26 +539,16 @@
       listaTarjetasAnios.style.justifyContent = "flex-start";
       listaTarjetasAnios.innerHTML = htmlBandaMedia;
 
-            // Asignación reactiva de eventos con soporte asincrónico nativo
       document.querySelectorAll(".tarjeta-anio-cronologica").forEach((tarjeta) => {
-        tarjeta.addEventListener("click", async function (evento) { // ✅ AGREGADO ASYNC ACÁ
-          // Usa currentTarget para asegurar la lectura desde el contenedor padre
+        tarjeta.addEventListener("click", async function (evento) {
           const anioId = evento.currentTarget.getAttribute("data-anio-id");
           const anioCalendario = evento.currentTarget.getAttribute("data-anio-calendario");
-          
-          if (!anioId) {
-            console.warn("[Auditoría HASPEN] Click detectado en tarjeta sin data-anio-id válido.");
-            return;
-          }
-          
-          console.log(`[Auditoría HASPEN] Cargando boletín para Año ID: ${anioId} | Ciclo: ${anioCalendario}`);
-          await renderizarBoletinInferior(anioId, anioCalendario); // ✅ AHORA SÍ ES VÁLIDO
+          if (!anioId) return;
+          await renderizarBoletinInferior(anioId, anioCalendario);
         });
       });
-
-
-
     }
+
 
         // ---------------------------------------------------------------------------------
     // 📋 VISOR DETALLADO: FRANJA HORIZONTAL INFERIOR 3 (BOLETINES POR AÑO DINÁMICOS)
@@ -691,7 +661,7 @@
         );
       });
 
-         // Motor analítico evaluado en memoria sobre el mapa unificado completo
+            // Motor analítico unificado en memoria (Sin penalizaciones de 1.0 virtual)
       let sumC1 = 0, countC1 = 0, aprobadasC1 = 0, desaprobadasC1 = 0, sinNotasC1 = 0;
       let sumC2 = 0, countC2 = 0, aprobadasC2 = 0, desaprobadasC2 = 0, sinNotasC2 = 0;
       let sumFinal = 0, countFinal = 0, aprobadasFinal = 0, desaprobadasFinal = 0, sinNotasFinal = 0;
@@ -699,7 +669,6 @@
 
       const totalMateriasPlan = planEstudioTeorico.length || 11;
 
-      // Escáner preliminar de red/memoria para detectar si el ciclo ya inició alguna carga real de notas finales
       const cicloTieneEvidenciaFinalReal = mapaCompletoBoletin.some((ev) => {
         const d = ev.datos_duros || {};
         const nFinal = parseFloat(d.nota_final);
@@ -709,9 +678,7 @@
       mapaCompletoBoletin.forEach((ev) => {
         const d = ev.datos_duros || {};
 
-        // -----------------------------------------------------------------------------
-        // Análisis 1° Cuatrimestre (Sin nota = Aplazo Virtual 1.0)
-        // -----------------------------------------------------------------------------
+        // 1° Cuatrimestre: Promedio exacto sobre lo real
         const nC1 = parseFloat(d.c1_nota);
         if (!isNaN(nC1) && nC1 > 0) {
           sumC1 += nC1;
@@ -720,14 +687,9 @@
           else desaprobadasC1++;
         } else {
           sinNotasC1++;
-          desaprobadasC1++; 
-          sumC1 += 1.0; 
-          countC1++;
         }
 
-        // -----------------------------------------------------------------------------
-        // Análisis 2° Cuatrimestre (Sin nota = Aplazo Virtual 1.0)
-        // -----------------------------------------------------------------------------
+        // 2° Cuatrimestre: Promedio exacto sobre lo real
         const nC2 = parseFloat(d.c2_nota);
         if (!isNaN(nC2) && nC2 > 0) {
           sumC2 += nC2;
@@ -736,14 +698,9 @@
           else desaprobadasC2++;
         } else {
           sinNotasC2++;
-          desaprobadasC2++; 
-          sumC2 += 1.0; 
-          countC2++;
         }
 
-        // -----------------------------------------------------------------------------
-        // Análisis Rendimiento Anual (Salva de Aprobación Virtual Inteligente de 6.0)
-        // -----------------------------------------------------------------------------
+        // Rendimiento Anual: Consistencia Institucional
         const nFinal = parseFloat(d.nota_final);
         if (!isNaN(nFinal) && nFinal > 0) {
           sumFinal += nFinal;
@@ -752,200 +709,120 @@
           else desaprobadasFinal++;
         } else {
           if (cicloTieneEvidenciaFinalReal) {
-            const notaVirtual = 6.0;
-            sumFinal += notaVirtual;
+            sumFinal += 6.0;
             countFinal++;
             aprobadasFinal++; 
             aprobadasVirtualesContadorAnual++; 
           } else {
             sinNotasFinal++;
-            desaprobadasFinal++; 
-            sumFinal += 1.0; 
-            countFinal++;
           }
         }
       });
 
-      // Cómputo exacto de promedios ponderados reales (Aduana de Memoria Nativa)
       const promC1 = countC1 > 0 ? (sumC1 / countC1).toFixed(2) : "0.00";
       const promC2 = countC2 > 0 ? (sumC2 / countC2).toFixed(2) : "0.00";
       const promFinal = countFinal > 0 ? (sumFinal / countFinal).toFixed(2) : "0.00";
       
-      // Porcentajes de avance real basados únicamente en lo efectivamente aprobado del plan curricular
-      const pctC1 = Math.round((aprobadasC1 / totalMateriasPlan) * 100);
-      const pctC2 = Math.round((aprobadasC2 / totalMateriasPlan) * 100);
-      const pctFinal = Math.round((aprobadasFinal / totalMateriasPlan) * 100);
+      const pctC1 = totalMateriasPlan > 0 ? Math.round((aprobadasC1 / totalMateriasPlan) * 100) : 0;
+      const pctC2 = totalMateriasPlan > 0 ? Math.round((aprobadasC2 / totalMateriasPlan) * 100) : 0;
+      const pctFinal = totalMateriasPlan > 0 ? Math.round((aprobadasFinal / totalMateriasPlan) * 100) : 0;
+
 
       // --- ESCALA NEOMÓRFICA DE RIESGO INSTITUCIONAL (BARRAS Y CONTADORES CALIBRADOS) ---
       
-      // Período 1
-      let colorBarraC1 = "#10b981"; 
-      const aplazosRealesC1 = desaprobadasC1 - sinNotasC1;
-      if (desaprobadasC1 > 4) {
-        colorBarraC1 = "#ef4444"; 
-      } else if (desaprobadasC1 > 0 && desaprobadasC1 <= 4) {
-        colorBarraC1 = "#f97316"; 
-      }
-      let textoDetalleC1 = `${aplazosRealesC1} Aplazos Reales | ${sinNotasC1} Pendientes de Carga`;
+           // Calibración de Alertas basadas exclusivamente en aplazos reales asentados
+      let colorBarraC1 = desaprobadasC1 > 4 ? "#ef4444" : (desaprobadasC1 > 0 ? "#f97316" : "#10b981"); 
+      let textoDetalleC1 = `${desaprobadasC1} Aplazos Reales | ${sinNotasC1} Pendientes`;
 
-      // Período 2
-      let colorBarraC2 = "#10b981";
-      const aplazosRealesC2 = desaprobadasC2 - sinNotasC2;
-      if (desaprobadasC2 > 4) {
-        colorBarraC2 = "#ef4444";
-      } else if (desaprobadasC2 > 0 && desaprobadasC2 <= 4) {
-        colorBarraC2 = "#f97316";
-      }
-      let textoDetalleC2 = `${aplazosRealesC2} Aplazos Reales | ${sinNotasC2} Pendientes de Carga`;
+      let colorBarraC2 = desaprobadasC2 > 4 ? "#ef4444" : (desaprobadasC2 > 0 ? "#f97316" : "#10b981");
+      let textoDetalleC2 = `${desaprobadasC2} Aplazos Reales | ${sinNotasC2} Pendientes`;
 
-      // Período Anual / Final
-      let colorBarraFinal = "#10b981";
-      let textoDetalleFinal = "";
-      let aplazosRealesFinal = 0;
-      
-      mapaCompletoBoletin.forEach((ev) => {
-        const d = ev.datos_duros || {};
-        const nFinal = parseFloat(d.nota_final);
-        if (!isNaN(nFinal) && nFinal > 0 && nFinal < 6) {
-          aplazosRealesFinal++;
-        }
-      });
+      let colorBarraFinal = desaprobadasFinal > 4 ? "#ef4444" : (desaprobadasFinal > 0 ? "#f97316" : "#10b981");
+      let textoDetalleFinal = `${desaprobadasFinal} Aplazos Reales | ${sinNotasFinal} Sin Carga`;
 
-      if (aplazosRealesFinal > 4 || (!cicloTieneEvidenciaFinalReal && desaprobadasFinal > 4)) {
-        colorBarraFinal = "#ef4444";
-      } else if (aplazosRealesFinal > 0 || (!cicloTieneEvidenciaFinalReal && desaprobadasFinal > 0)) {
-        colorBarraFinal = "#f97316";
-      }
-
-      if (cicloTieneEvidenciaFinalReal) {
-        textoDetalleFinal = `${aplazosRealesFinal} Aplazos Reales | ${aprobadasVirtualesContadorAnual} Aprobadas Virtuales (Pendientes)`;
-      } else {
-        textoDetalleFinal = `0 Aplazos Reales | ${sinNotasFinal} Materias sin Carga Inicial`;
-      }
-
-
+      // Función helper compacta para renderizar las tres tarjetas de forma idéntica
+      const crearTarjetaCuatri = (titulo, promedio, detalle, color, porcentaje) => `
+        <div style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; border-top:4px solid ${color}; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:8px;">${titulo}</div>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:12px; color:#334155;">
+                <div style="display:flex; justify-content:space-between;"><span>Promedio Parcial:</span><strong>${promedio}</strong></div>
+                <div style="display:flex; justify-content:space-between;"><span>Estado de Carga:</span><strong style="color:${color};">${detalle}</strong></div>
+            </div>
+            <div style="margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748b; margin-bottom:4px;">
+                    <span>Progreso del Plan (% Materias Aprobadas)</span>
+                    <strong>${porcentaje}%</strong>
+                </div>
+                <div style="width:100%; background-color:#f1f5f9; height:6px; border-radius:4px; overflow:hidden;">
+                    <div style="width:${porcentaje}%; background-color:${color}; height:100%; transition:width 0.4s ease;"></div>
+                </div>
+            </div>
+        </div>`;
 
       let htmlEstructura = `
-            <div style="width: 100%; display: flex; flex-direction: column; gap: 20px; font-family: system-ui, -apple-system, sans-serif;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                    
-                    <!-- Tarjeta 1° Cuatrimestre -->
-                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBarraC1}; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">📈 1° Cuatrimestre</div>
-                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
-                            <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC1}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Estado de Carga:</span><strong style="color: ${colorBarraC1};">${textoDetalleC1}</strong></div>
-                        </div>
-                        <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctC1}%; background-color: ${colorBarraC1}; height: 100%; transition: width 0.4s ease, background-color 0.4s ease;"></div>
-                        </div>
-                    </div>
+        <div style="width:100%; display:flex; flex-direction:column; gap:20px; font-family:system-ui, -apple-system, sans-serif;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+                ${crearTarjetaCuatri("📈 1° Cuatrimestre", promC1, textoDetalleC1, colorBarraC1, pctC1)}
+                ${crearTarjetaCuatri("📈 2° Cuatrimestre", promC2, textoDetalleC2, colorBarraC2, pctC2)}
+                ${crearTarjetaCuatri("🎯 Rendimiento Anual", promFinal, textoDetalleFinal, colorBarraFinal, pctFinal)}
+            </div>
+            <div style="width:100%; overflow-x:auto; border:1px solid #cbd5e1; border-radius:6px;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px; font-family:monospace; color:#334155; text-align:center; background:#ffffff; min-width:800px;">
+                    <thead>
+                        <tr style="background:#1b4d82; color:#ffffff; text-transform:uppercase; font-size:11px; height:32px;">
+                            <th rowspan="2" style="padding:10px; border:1px solid #cbd5e1; text-align:left; width:30%;">Espacio Curricular / Asignatura</th>
+                            <th colspan="4" style="border:1px solid #cbd5e1; background:#1e40af;">1° Cuatrimestre</th>
+                            <th colspan="4" style="border:1px solid #cbd5e1; background:#b45309;">2° Cuatrimestre</th>
+                            <th rowspan="2" style="padding:10px; border:1px solid #cbd5e1; background:#475569; width:10%;">Final</th>
+                        </tr>
+                        <tr style="background:#ffffff; color:#1e293b; font-weight:bold; height:30px;">
+                            <th style="border:1px solid #cbd5e1; width:7%;">1° INF</th><th style="border:1px solid #cbd5e1; width:7%;">2° INF</th><th style="border:1px solid #cbd5e1; width:7%;">FORTA.</th><th style="border:1px solid #cbd5e1; background:#e0f2fe; color:#0369a1; width:8%;">1° CUATRI</th>
+                            <th style="border:1px solid #cbd5e1; width:7%;">1° INF</th><th style="border:1px solid #cbd5e1; width:7%;">2° INF</th><th style="border:1px solid #cbd5e1; width:7%;">FORTA.</th><th style="border:1px solid #cbd5e1; background:#fef3c7; color:#b45309; width:8%;">2° CUATRI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+  ${mapaCompletoBoletin.map((ev) => {
+    const dExtra = ev.datos_duros || {};
+    const materiaStr = dExtra.materia || ev.descripcion || "Materia General";
+    const inf1_1 = dExtra.c1_inf1 && dExtra.c1_inf1 !== "0" ? dExtra.c1_inf1 : "-";
+    const inf1_2 = dExtra.c1_inf2 && dExtra.c1_inf2 !== "0" ? dExtra.c1_inf2 : "-";
+    const forta1 = dExtra.c1_forta && dExtra.c1_forta !== "0" ? dExtra.c1_forta : "-";
+    const notaC1 = dExtra.c1_nota && dExtra.c1_nota !== "0" ? dExtra.c1_nota : "-";
+    const inf2_1 = dExtra.c2_inf1 && dExtra.c2_inf1 !== "0" ? dExtra.c2_inf1 : "-";
+    const inf2_2 = dExtra.c2_inf2 && dExtra.c2_inf2 !== "0" ? dExtra.c2_inf2 : "-";
+    const forta2 = dExtra.c2_forta && dExtra.c2_forta !== "0" ? dExtra.c2_forta : "-";
+    const notaC2 = dExtra.c2_nota && dExtra.c2_nota !== "0" ? dExtra.c2_nota : "-";
+    const finalNota = dExtra.nota_final && dExtra.nota_final !== "0" ? dExtra.nota_final : "-";
 
-                    <!-- Tarjeta 2° Cuatrimestre -->
-                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBarraC2}; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">📈 2° Cuatrimestre</div>
-                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
-                            <div style="display: flex; justify-content: space-between;"><span>Promedio Parcial:</span><strong>${promC2}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Estado de Carga:</span><strong style="color: ${colorBarraC2};">${textoDetalleC2}</strong></div>
-                        </div>
-                        <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctC2}%; background-color: ${colorBarraC2}; height: 100%; transition: width 0.4s ease, background-color 0.4s ease;"></div>
-                        </div>
-                    </div>
+    const estNormal = "border:1px solid #cbd5e1; color:#475569;";
+    const estAplazo = "border:1px solid #cbd5e1; font-weight:bold; color:#b91c1c; background-color:#fef2f2;";
+    
+    const estColumnaC1 = (parseFloat(notaC1) < 6) ? estAplazo : "border:1px solid #cbd5e1; font-weight:bold; background:#f0f9ff; color:#0369a1;";
+    const estColumnaC2 = (parseFloat(notaC2) < 6) ? estAplazo : "border:1px solid #cbd5e1; font-weight:bold; background:#fffbeb; color:#b45309;";
+    const estColumnaFn = (parseFloat(finalNota) < 6) ? estAplazo : "border:1px solid #cbd5e1; font-weight:bold; background:#f1f5f9; color:#0f172a;";
 
-                    <!-- Tarjeta Rendimiento Anual -->
-                    <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; border-top: 4px solid ${colorBarraFinal}; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 8px;">🎯 Rendimiento Anual</div>
-                        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #334155;">
-                            <div style="display: flex; justify-content: space-between;"><span>Promedio General:</span><strong>${promFinal}</strong></div>
-                            <div style="display: flex; justify-content: space-between;"><span>Estado de Carga:</span><strong style="color: ${colorBarraFinal};">${textoDetalleFinal}</strong></div>
-                        </div>
-                        <div style="width: 100%; background-color: #f1f5f9; height: 6px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                            <div style="width: ${pctFinal}%; background-color: ${colorBarraFinal}; height: 100%; transition: width 0.4s ease, background-color 0.4s ease;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div style="width: 100%; overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 6px;">
-
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace; color: #334155; text-align: center; background: #ffffff; min-width: 800px;">
-                        <thead>
-                            <tr style="background: #1b4d82; color: #ffffff; text-transform: uppercase; font-size: 11px; height: 32px;">
-                                <th rowspan="2" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 30%;">Espacio Curricular / Asignatura</th>
-                                <th colspan="4" style="border: 1px solid #cbd5e1; background: #1e40af;">1° Cuatrimestre</th>
-                                <th colspan="4" style="border: 1px solid #cbd5e1; background: #b45309;">2° Cuatrimestre</th>
-                                <th rowspan="2" style="padding: 10px; border: 1px solid #cbd5e1; background: #475569; width: 10%;">Final</th>
-                            </tr>
-                            <tr style="background: #ffffff; color: #1e293b; font-weight: bold; height: 30px;">
-                                <th style="border: 1px solid #cbd5e1; width: 7%;">1° INF</th>
-                                <th style="border: 1px solid #cbd5e1; width: 7%;">2° INF</th>
-                                <th style="border: 1px solid #cbd5e1; width: 7%;">FORTA.</th>
-                                <th style="border: 1px solid #cbd5e1; background: #e0f2fe; color: #0369a1; width: 8%;">1° CUATRI</th>
-                                <th style="border: 1px solid #cbd5e1; width: 7%;">1° INF</th>
-                                <th style="border: 1px solid #cbd5e1; width: 7%;">2° INF</th>
-                                <th style="border: 1px solid #cbd5e1; width: 7%;">FORTA.</th>
-                                <th style="border: 1px solid #cbd5e1; background: #fef3c7; color: #b45309; width: 8%;">2° CUATRI</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-      ${mapaCompletoBoletin.map((ev) => {
-        const dExtra = ev.datos_duros || {};
-        const materiaStr = dExtra.materia || ev.descripcion || "Materia General";
-
-        const inf1_1 = dExtra.c1_inf1 && dExtra.c1_inf1 !== "0" ? dExtra.c1_inf1 : "-";
-        const inf1_2 = dExtra.c1_inf2 && dExtra.c1_inf2 !== "0" ? dExtra.c1_inf2 : "-";
-        const forta1 = dExtra.c1_forta && dExtra.c1_forta !== "0" ? dExtra.c1_forta : "-";
-        const notaC1 = dExtra.c1_nota && dExtra.c1_nota !== "0" ? dExtra.c1_nota : "-";
-
-        const inf2_1 = dExtra.c2_inf1 && dExtra.c2_inf1 !== "0" ? dExtra.c2_inf1 : "-";
-        const inf2_2 = dExtra.c2_inf2 && dExtra.c2_inf2 !== "0" ? dExtra.c2_inf2 : "-";
-        const forta2 = dExtra.c2_forta && dExtra.c2_forta !== "0" ? dExtra.c2_forta : "-";
-        const notaC2 = dExtra.c2_nota && dExtra.c2_nota !== "0" ? dExtra.c2_nota : "-";
-
-        const finalNota = dExtra.nota_final && dExtra.nota_final !== "0" ? dExtra.nota_final : "-";
-
-        // Aislamiento completo de estilos para blindaje de sintaxis (Pilar 5)
-        const estNormal = "border: 1px solid #cbd5e1; color: #475569;";
-        const estAplazo = "border: 1px solid #cbd5e1; font-weight: bold; color: #b91c1c; background-color: #fef2f2;";
-        
-        const nC1_num = parseFloat(notaC1);
-        const estColumnaC1 = (!isNaN(nC1_num) && nC1_num > 0 && nC1_num < 6) ? estAplazo : "border: 1px solid #cbd5e1; font-weight: bold; background: #f0f9ff; color: #0369a1; font-size: 13px;";
-
-        const nC2_num = parseFloat(notaC2);
-        const estColumnaC2 = (!isNaN(nC2_num) && nC2_num > 0 && nC2_num < 6) ? estAplazo : "border: 1px solid #cbd5e1; font-weight: bold; background: #fffbeb; color: #b45309; font-size: 13px;";
-
-        const nFn_num = parseFloat(finalNota);
-        const estColumnaFn = (!isNaN(nFn_num) && nFn_num > 0 && nFn_num < 6) ? estAplazo : "border: 1px solid #cbd5e1; font-weight: bold; background: #f1f5f9; color: #0f172a; font-size: 13px;";
-
-        const subPeriodos = [inf1_1, inf1_2, notaC1, inf2_1, inf2_2, notaC2, finalNota];
-        const tieneAplazoVigente = subPeriodos.some((nota) => {
-          const nNum = parseFloat(nota);
-          return !isNaN(nNum) && nNum > 0 && nNum < 6;
-        });
-
-        const estiloFila = tieneAplazoVigente ? "background-color: #fafafa;" : "background-color: #ffffff;";
-
-        return `
-                <tr style="${estiloFila} border-bottom: 1px solid #e2e8f0; height: 32px;">
-                    <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: left; font-weight: bold; color: #1e293b; text-transform: uppercase;">${materiaStr}</td>
-                    <td style="${(parseFloat(inf1_1) < 6) ? estAplazo : estNormal}">${inf1_1}</td>
-                    <td style="${(parseFloat(inf1_2) < 6) ? estAplazo : estNormal}">${inf1_2}</td>
-                    <td style="${(parseFloat(forta1) < 6) ? estAplazo : estNormal}">${forta1}</td>
-                    <td style="${estColumnaC1}">${notaC1}</td>
-                    <td style="${(parseFloat(inf2_1) < 6) ? estAplazo : estNormal}">${inf2_1}</td>
-                    <td style="${(parseFloat(inf2_2) < 6) ? estAplazo : estNormal}">${inf2_2}</td>
-                    <td style="${(parseFloat(forta2) < 6) ? estAplazo : estNormal}">${forta2}</td>
-                    <td style="${estColumnaC2}">${notaC2}</td>
-                    <td style="${estColumnaFn}">${finalNota}</td>
-                </tr>`;
-      }).join("")}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
+    return `
+            <tr style="background-color:#ffffff; border-bottom:1px solid #e2e8f0; height:32px;">
+                <td style="padding:8px 10px; border:1px solid #e2e8f0; text-align:left; font-weight:bold; color:#1e293b; text-transform:uppercase;">${materiaStr}</td>
+                <td style="${(parseFloat(inf1_1) < 6) ? estAplazo : estNormal}">${inf1_1}</td>
+                <td style="${(parseFloat(inf1_2) < 6) ? estAplazo : estNormal}">${inf1_2}</td>
+                <td style="${(parseFloat(forta1) < 6) ? estAplazo : estNormal}">${forta1}</td>
+                <td style="${estColumnaC1}">${notaC1}</td>
+                <td style="${(parseFloat(inf2_1) < 6) ? estAplazo : estNormal}">${inf2_1}</td>
+                <td style="${(parseFloat(inf2_2) < 6) ? estAplazo : estNormal}">${inf2_2}</td>
+                <td style="${(parseFloat(forta2) < 6) ? estAplazo : estNormal}">${forta2}</td>
+                <td style="${estColumnaC2}">${notaC2}</td>
+                <td style="${estColumnaFn}">${finalNota}</td>
+            </tr>`;
+  }).join("")}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
 
       visorBoletinContenedor.innerHTML = htmlEstructura;
     }
+
 
 
     // Renderizado automático inicial de la franja media de tarjetas al cargar la pantalla
