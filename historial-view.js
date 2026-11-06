@@ -204,7 +204,7 @@
       }
     }
 
-    // CORRECCIÓN INTERFAZ: Fecha de Inscripción Original (Tarjeta 2 - Registro de Matrícula)
+       // CORRECCIÓN INTERFAZ: Fecha de Inscripción Original (Tarjeta 2 - Registro de Matrícula)
     const elementoFechaInscripcion = document.getElementById("fechaInscripcionHistorial");
     if (elementoFechaInscripcion) {
       if (alumno.fechaInscripcion && alumno.fechaInscripcion.trim() !== "") {
@@ -215,6 +215,110 @@
         elementoFechaInscripcion.textContent = "Pendiente de Carga en Formulario de Alta";
       }
     }
+
+    // ---------------------------------------------------------------------------------
+    // 🔄 MOTOR DE RENDERIZADO: HISTORIAL DE VÍNCULO, PASES Y CAMBIOS DE CURSO
+    // ---------------------------------------------------------------------------------
+    const listaHistorialVinculo = document.getElementById("listaHistorialVinculo");
+    const badgeCondicionVinculo = document.getElementById("badgeCondicionVinculo");
+
+    if (listaHistorialVinculo) {
+      // Filtrado nativo en memoria (Pilar 2) de eventos de matrícula, pases o movimientos de trayectoria
+      const eventosTrayectoria = todosLosEventosBici.filter((ev) => {
+        const cat = String(ev.categoria || "").toUpperCase();
+        const sub = String(ev.subcategoria || "").toLowerCase();
+        const desc = String(ev.descripcion || "").toLowerCase();
+        
+        return (
+          cat === "MATRICULA" || 
+          cat === "OBSERVACION" ||
+          desc.includes("pase") || 
+          desc.includes("cambio de curso") || 
+          desc.includes("division") ||
+          desc.includes("salida") ||
+          desc.includes("ingreso") ||
+          desc.includes("reincorporado") ||
+          sub.includes("alta") || 
+          sub.includes("baja")
+        );
+      });
+
+      // Ordenar cronológicamente (más reciente primero) para mostrar en el tope del scroll
+      eventosTrayectoria.sort((a, b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+
+      if (eventosTrayectoria.length > 0) {
+        let htmlPases = "";
+        
+        eventosTrayectoria.forEach((ev) => {
+          // Formateo compacto de la fecha del movimiento
+          let fechaFormateada = "Fecha n/d";
+          if (ev.fecha_hora) {
+            try {
+              const objFecha = new Date(ev.fecha_hora);
+              fechaFormateada = objFecha.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+            } catch (e) {
+              fechaFormateada = String(ev.fecha_hora).substring(0, 10);
+            }
+          }
+
+          const descripcionMovimiento = ev.descripcion || `${ev.categoria} - ${ev.subcategoria}`;
+          
+          // Clasificación visual rápida del tipo de movimiento
+          let colorIndicador = "#2563eb"; // Azul: Cambio interno estándar
+          const descLower = descripcionMovimiento.toLowerCase();
+          if (descLower.includes("pase") || descLower.includes("baja") || descLower.includes("salida")) {
+            colorIndicador = "#dc2626"; // Rojo: Movimiento externo / Salida
+          } else if (descLower.includes("ingreso") || descLower.includes("reincorporado") || descLower.includes("alta") || descLower.includes("volvio")) {
+            colorIndicador = "#16a34a"; // Verde: Retorno o alta
+          }
+
+          htmlPases += `
+            <div style="background: #f8fafc; border-left: 3px solid ${colorIndicador}; padding: 4px 6px; border-radius: 0 4px 4px 0; display: flex; flex-direction: column; gap: 1px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 700; color: #334155;">
+                <span>${ev.subcategoria || ev.categoria}</span>
+                <span style="color: #64748b; font-weight: 500; font-size: 9px;">${fechaFormateada}</span>
+              </div>
+              <div style="font-size: 10px; color: #475569; line-height: 1.2; font-family: system-ui;">
+                ${descripcionMovimiento}
+              </div>
+            </div>
+          `;
+        });
+
+        listaHistorialVinculo.innerHTML = htmlPases;
+
+        // Actualización dinámica del Badge de condición según el último evento registrado en la línea temporal
+        const ultimoMovimiento = eventosTrayectoria[0].descripcion.toLowerCase();
+        if (badgeCondicionVinculo) {
+          if (ultimoMovimiento.includes("pase a") || ultimoMovimiento.includes("baja") || ultimoMovimiento.includes("salida")) {
+            badgeCondicionVinculo.textContent = "Pase / Salida";
+            badgeCondicionVinculo.style.background = "#fce8e6";
+            badgeCondicionVinculo.style.color = "#c5221f";
+          } else if (ultimoMovimiento.includes("regular") || ultimoMovimiento.includes("ingreso") || ultimoMovimiento.includes("reincorporado") || ultimoMovimiento.includes("alta")) {
+            badgeCondicionVinculo.textContent = "Regular Activo";
+            badgeCondicionVinculo.style.background = "#e6f4ea";
+            badgeCondicionVinculo.style.color = "#137333";
+          } else {
+            badgeCondicionVinculo.textContent = "Variación";
+            badgeCondicionVinculo.style.background = "#fef3c7";
+            badgeCondicionVinculo.style.color = "#b45309";
+          }
+        }
+      } else {
+        // Fallback institucional si no se registran pases o movimientos previos
+        listaHistorialVinculo.innerHTML = `
+          <div style="font-size: 10px; color: #64748b; font-style: italic; text-align: center; padding-top: 12px; line-height: 1.3;">
+            ℹ️ Sin pases ni cambios de curso registrados en su trayectoria. Estado inicial permanente.
+          </div>
+        `;
+        if (badgeCondicionVinculo) {
+          badgeCondicionVinculo.textContent = "Regular Activo";
+          badgeCondicionVinculo.style.background = "#e6f4ea";
+          badgeCondicionVinculo.style.color = "#137333";
+        }
+      }
+    }
+
 
     // ---------------------------------------------------------------------------------
     // 🔍 ESCÁNER REACTIVO DE FALTANTES Y AUDITORÍA DE LEGAJO (REEMPLAZO FORENSE)

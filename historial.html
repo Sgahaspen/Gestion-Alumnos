@@ -265,20 +265,32 @@
               </div>
             </div>
           </section>
-          <!-- Tarjeta de Control de Inscripción -->
-          <section class="tarjeta-legajo-critica" style="height: 165px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; padding: 12px;">
-            <h3 style="font-size: 0.8rem !important; color: #1b4d82; margin: 0 0 8px 0;">📅 Registro de Matrícula</h3>
-            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 2px;">
-              <div>
-                <div class="meta-label">Fecha de Inscripción Original</div>
-                <div class="meta-value" id="fechaInscripcionHistorial" style="font-size: 13px;">-</div>
+                  <!-- Tarjeta de Control de Inscripción -->
+          <section class="tarjeta-legajo-critica" style="height: 165px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; padding: 12px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h3 style="font-size: 0.8rem !important; color: #1b4d82; margin: 0;">📅 Registro de Matrícula</h3>
+              <span id="badgeCondicionVinculo" style="padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background: #e6f4ea; color: #137333; text-transform: uppercase;">Regular Activo</span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 4px; height: calc(100% - 24px);">
+              <!-- Fila Superior de Datos Fijos -->
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+                <div>
+                  <div class="meta-label" style="font-size: 9px;">Fecha de Inscripción Original</div>
+                  <div class="meta-value" id="fechaInscripcionHistorial" style="font-size: 12px;">-</div>
+                </div>
               </div>
-              <div>
-                <div class="meta-label">Condición del Vínculo</div>
-                <div class="meta-value" style="color: #10b981; font-size: 13px;">Regular Activo</div>
+
+              <!-- Historial de Pases con Scroll Integrado -->
+              <div class="meta-label" style="font-size: 9px; margin-bottom: 2px;">Historial de Pases y Variación de Trayectoria:</div>
+              <div id="contenedorHistorialVinculo" style="flex-grow: 1; overflow-y: auto; max-height: 85px; padding-right: 2px;">
+                <div id="listaHistorialVinculo" style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="font-size: 11px; color: #94a3b8; font-style: italic; text-align: center; padding-top: 8px;">Analizando trazabilidad local...</div>
+                </div>
               </div>
             </div>
           </section>
+
 
           <!-- Tarjeta de Estado del Legajo Forense (Alertas de Modificación) -->
           <section class="tarjeta-legajo-critica" id="tarjetaEstadoLegajoAlerta" style="height: 165px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; padding: 12px; overflow: hidden;">
